@@ -1,0 +1,85 @@
+# Per-language config. Helix has default language-server entries for
+# rust-analyzer, typescript-language-server, jdtls, elixir-ls, and erlang_ls;
+# we only override here when we want extra behavior (formatters, args, etc).
+# See: https://docs.helix-editor.com/languages.html
+#
+# NOTE: Setting `language-servers` on a [[language]] entry replaces the
+# default list, so each language re-declares its primary LSP alongside
+# fs_watcher_lsp.
+
+# ─── fs_watcher_lsp ───────────────────────────────────────────────────────
+# Auto-reloads the buffer when the file changes on disk. Reloads flow
+# through Helix's undo/redo stack. Install: cargo install fs_watcher_lsp
+# (or `mise install` — see mise/config.toml).
+[language-server.fs_watcher_lsp]
+command = "fs_watcher_lsp"
+args = []
+
+# ─── Rust ──────────────────────────────────────────────────────────────────
+[[language]]
+name = "rust"
+auto-format = false
+language-servers = ["rust-analyzer", "fs_watcher_lsp"]
+
+[language-server.rust-analyzer.config.check]
+command = "clippy"
+
+# ─── TypeScript / JavaScript ──────────────────────────────────────────────
+[[language]]
+name = "typescript"
+auto-format = false
+language-servers = ["typescript-language-server", "fs_watcher_lsp"]
+formatter = { command = "prettier", args = ["--parser", "typescript"] }
+
+[[language]]
+name = "tsx"
+auto-format = false
+language-servers = ["typescript-language-server", "fs_watcher_lsp"]
+formatter = { command = "prettier", args = ["--parser", "typescript"] }
+
+[[language]]
+name = "javascript"
+auto-format = false
+language-servers = ["typescript-language-server", "fs_watcher_lsp"]
+formatter = { command = "prettier", args = ["--parser", "babel"] }
+
+[[language]]
+name = "jsx"
+auto-format = false
+language-servers = ["typescript-language-server", "fs_watcher_lsp"]
+formatter = { command = "prettier", args = ["--parser", "babel"] }
+
+# ─── Java ─────────────────────────────────────────────────────────────────
+[[language]]
+name = "java"
+auto-format = false
+language-servers = ["jdtls", "fs_watcher_lsp"]
+
+# ─── Elixir ───────────────────────────────────────────────────────────────
+[[language]]
+name = "elixir"
+auto-format = false
+language-servers = ["elixir-ls", "fs_watcher_lsp"]
+
+[[language]]
+name = "heex"
+language-servers = ["elixir-ls", "fs_watcher_lsp"]
+
+# ─── Erlang ───────────────────────────────────────────────────────────────
+[[language]]
+name = "erlang"
+language-servers = ["erlang-ls", "fs_watcher_lsp"]
+
+# ─── Misc formatters ──────────────────────────────────────────────────────
+[[language]]
+name = "json"
+formatter = { command = "prettier", args = ["--parser", "json"] }
+
+[[language]]
+name = "markdown"
+soft-wrap.enable = true
+formatter = { command = "prettier", args = ["--parser", "markdown"] }
+
+[[language]]
+name = "toml"
+formatter = { command = "taplo", args = ["fmt", "-"] }

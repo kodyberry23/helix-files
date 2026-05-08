@@ -1,0 +1,100 @@
+{
+  "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
+  "palette": {
+    "polar0": "#2E3440",
+    "polar1": "#3B4252",
+    "polar3": "#4C566A",
+    "snow0": "#D8DEE9",
+    "snow2": "#ECEFF4",
+    "frost0": "#8FBCBB",
+    "frost1": "#88C0D0",
+    "frost2": "#81A1C1",
+    "frost3": "#5E81AC",
+    "red": "#BF616A",
+    "orange": "#D08770",
+    "yellow": "#EBCB8B",
+    "green": "#A3BE8C",
+    "purple": "#B48EAD"
+  },
+  "blocks": [
+    {
+      "alignment": "right",
+      "segments": [
+        {
+          "background": "transparent",
+          "foreground": "p:yellow",
+          "properties": {
+            "threshold": 2000,
+            "style": "austin",
+            "always_enabled": false
+          },
+          "style": "plain",
+          "template": "  {{ .FormattedMs }} ",
+          "type": "executiontime"
+        },
+        {
+          "background": "transparent",
+          "foreground": "p:polar3",
+          "style": "plain",
+          "template": "  {{ .CurrentDate | date .Format }} ",
+          "type": "time"
+        }
+      ],
+      "type": "rprompt"
+    },
+    {
+      "alignment": "left",
+      "segments": [
+        {
+          "background": "p:frost1",
+          "foreground": "p:polar0",
+          "style": "diamond",
+          "template": "{{if .Root}}  {{.UserName}} {{else}} {{.UserName}} {{end}}",
+          "trailing_diamond": "",
+          "type": "session"
+        },
+        {
+          "background": "p:purple",
+          "foreground": "p:polar0",
+          "powerline_symbol": "",
+          "properties": {
+            "folder_icon": "",
+            "folder_separator_icon": "  ",
+            "max_depth": 3,
+            "style": "agnoster_short"
+          },
+          "style": "powerline",
+          "template": " {{ .Path }} ",
+          "type": "path"
+        },
+        {
+          "background": "p:orange",
+          "foreground": "p:polar0",
+          "powerline_symbol": "",
+          "properties": {
+            "branch_icon": " ",
+            "fetch_status": true
+          },
+          "style": "powerline",
+          "template": " {{ .HEAD }}{{ if or (.Working.Changed) (.Staging.Changed) }}  {{ end }}{{ if gt .Behind 0 }}⇣{{ end }}{{ if gt .Ahead 0 }}⇡{{ end }} ",
+          "type": "git"
+        },
+        {
+          "background": "p:red",
+          "foreground": "p:polar0",
+          "powerline_symbol": "",
+          "style": "powerline",
+          "template": "  {{ .Code }} ",
+          "type": "status",
+          "properties": {
+            "always_enabled": false
+          }
+        }
+      ],
+      "type": "prompt"
+    }
+  ],
+  "console_title_template": "{{if .Root}} ⚡ {{end}}{{.UserName}} ➔ 📁{{.Folder}}",
+  "final_space": true,
+  "version": 4
+}

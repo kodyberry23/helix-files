@@ -1,0 +1,107 @@
+theme = "nord-aurora"
+
+[editor]
+line-number = "relative"
+mouse = true
+bufferline = "always"
+color-modes = true
+cursorline = true
+auto-format = false
+auto-save = true
+completion-trigger-len = 1
+true-color = true
+# Implicitly trust every workspace — skips the "trust this project?" prompt
+# on first open. The flag is named `insecure` because it disables the guard
+# against malicious local-config / language-server payloads in untrusted
+# repos. Safe enough when you only open projects you authored.
+insecure = true
+
+[editor.cursor-shape]
+insert = "bar"
+normal = "block"
+select = "underline"
+
+[editor.statusline]
+left = ["mode", "spinner", "version-control", "file-name", "file-modification-indicator"]
+center = []
+right = ["diagnostics", "selections", "register", "position", "file-encoding", "file-line-ending", "file-type"]
+separator = "│"
+mode.normal = "NORMAL"
+mode.insert = "INSERT"
+mode.select = "SELECT"
+
+[editor.lsp]
+display-messages = true
+display-inlay-hints = true
+
+[editor.file-picker]
+hidden = false
+
+[editor.indent-guides]
+render = false
+
+[editor.soft-wrap]
+enable = false
+
+[editor.whitespace.render]
+space = "none"
+tab = "all"
+nbsp = "all"
+newline = "none"
+
+[editor.whitespace.characters]
+space = "·"
+nbsp = "⍽"
+tab = "→"
+newline = "⏎"
+
+[keys.normal]
+# Quick save/quit
+"space"."w" = ":w"
+"space"."q" = ":q"
+"space"."x" = ":x"
+# Center cursor on screen movements
+"C-d" = ["half_page_down", "align_view_center"]
+"C-u" = ["half_page_up", "align_view_center"]
+# Easier line navigation
+"H" = "goto_line_start"
+"L" = "goto_line_end"
+
+# Yazi as file picker. The whole flow is wrapped in scripts/yazi-pick.sh:
+# inside tmux the script uses `display-popup` so yazi floats over helix
+# without forcing a full redraw on exit (instant feel); outside tmux it
+# runs yazi directly. The script writes the picked path to stdout; on
+# cancel (q / Esc in yazi) it writes nothing, so :open / :vsplit get an
+# empty arg, error silently, and leave the current buffer untouched.
+#
+# %sh{} blocks until the script returns, so this single command does the
+# work of the previous 4-step chain — no async race between :sh rm and
+# :insert-output, no temp-file collisions, no leftover buffers on cancel.
+# Single entrypoint — `space e` opens yazi as a file picker. The action
+# (open in current view vs. vertical split) is decided FROM WITHIN yazi:
+#   Enter  → :open <picked>
+#   C-v    → :vsplit <picked>  (yazi-side keybind in yazi/keymap.toml)
+#
+# Helix can't pick between :open and :vsplit from one substitution, so the
+# chain runs both: each command fires, but the wrapper outputs a path only
+# for its corresponding mode and an inert sentinel (current buffer for
+# :open / `/dev/null` for :vsplit) for the other. The trailing `:echo ""`
+# clears the status-bar error left behind when :vsplit rejects /dev/null
+# (IrregularFile — character device isn't a regular file). The split is
+# correctly skipped either way; this just hides the noise.
+"space"."e" = [
+    # First :redraw forces a frame without the space-menu which-key popup
+    # before yazi takes the alt-screen. Without this the popup pixels are
+    # what gets restored when yazi exits, until helix re-renders — visible
+    # as a "flash". Clearing the popup state happens internally before the
+    # chain runs, but the SCREEN still shows the previous frame.
+    ":redraw",
+    ":insert-output $HOME/projects/helix-files/scripts/yazi-pick.sh run '%{file_path_absolute}'",
+    ":redraw",
+    ":open \"%sh{$HOME/projects/helix-files/scripts/yazi-pick.sh open '%{file_path_absolute}'}\"",
+    ":vsplit \"%sh{$HOME/projects/helix-files/scripts/yazi-pick.sh vsplit '%{file_path_absolute}'}\"",
+    ':echo ""',
+]
+
+[keys.insert]
+"j"."k" = "normal_mode"

@@ -1,0 +1,26 @@
+# Global mise config. Symlink to ~/.config/mise/config.toml.
+# Helix discovers these via PATH once `mise activate zsh` is sourced from .zshrc.
+
+[tools]
+# ─── Language runtimes ────────────────────────────────────────────────────
+node     = "lts"
+rust     = "stable"
+java     = "21"
+elixir   = "latest"
+erlang   = "latest"
+
+# ─── Language servers (mise-installable) ──────────────────────────────────
+rust-analyzer                    = "latest"  # aqua: rust-lang/rust-analyzer
+elixir-ls                        = "latest"  # asdf: mise-plugins/mise-elixir-ls
+"npm:typescript"                 = "latest"
+"npm:typescript-language-server" = "latest"
+"cargo:fs_watcher_lsp"           = "latest"  # auto-reload buffers on disk change
+
+# ─── Formatters used by helix/languages.toml ──────────────────────────────
+"npm:prettier" = "latest"
+"pipx:ruff"    = "latest"
+"cargo:taplo-cli" = "latest"
+pnpm = "10.10.0"
+
+# Note: jdtls and erlang_ls are not in the mise registry on macOS.
+# Install via Homebrew: brew install jdtls erlang_ls

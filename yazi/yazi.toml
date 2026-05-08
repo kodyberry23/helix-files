@@ -1,0 +1,76 @@
+# Yazi configuration. See: https://yazi-rs.github.io/docs/configuration/yazi
+# Note: the `[manager]` table was renamed to `[mgr]` in recent yazi versions.
+
+[mgr]
+# ratio = [parent, current, preview]; 0 hides a column. We hide the parent
+# column to keep yazi focused on the current dir + file preview only.
+ratio          = [0, 3, 4]
+sort_by        = "natural"
+sort_sensitive = false
+sort_reverse   = false
+sort_dir_first = true
+linemode       = "size"
+show_hidden    = false
+show_symlink   = true
+
+[preview]
+tab_size      = 2
+max_width     = 600
+max_height    = 900
+cache_dir     = ""
+image_filter  = "triangle"
+image_quality = 75
+
+[opener]
+# `block = true` makes yazi suspend to its secondary screen while Helix
+# runs, returning to the file list when hx exits. This is the integration
+# point the sessionizer relies on: tmux pane → yazi → helix → yazi → shell.
+#
+# DIAGNOSTIC: also log the launch attempt to /tmp/yazi-edit.log so we can
+# see whether yazi is firing this opener at all and what args it gets.
+edit = [
+  { run = 'echo "[$(date +%H:%M:%S)] yazi→hx args: $@" >> /tmp/yazi-edit.log; hx "$@"', desc = "Helix", block = true, for = "unix" },
+]
+open = [
+  { run = 'open %s', desc = "Open", for = "macos" },
+]
+reveal = [
+  { run = 'open -R %s', desc = "Reveal in Finder", for = "macos" },
+]
+extract = [
+  { run = 'unar %s', desc = "Extract here", for = "unix" },
+]
+play = [
+  { run = 'mpv %s', orphan = true, for = "unix" },
+]
+
+[open]
+# Order matters — first matching rule wins for the default `open` action.
+# The catch-all uses `edit` (Helix) FIRST so any file libmagic doesn't
+# classify into a more specific bucket below still opens in Helix instead
+# of falling through to macOS `open` (which routes to whatever app the OS
+# thinks owns the extension — TextEdit, VSCode, etc.).
+rules = [
+  { mime = "image/*", use = ["open", "reveal"] },
+  { mime = "video/*", use = ["play", "reveal"] },
+  { mime = "audio/*", use = ["play", "reveal"] },
+  { mime = "application/zip",            use = ["extract", "reveal"] },
+  { mime = "application/gzip",           use = ["extract", "reveal"] },
+  { mime = "application/x-tar",          use = ["extract", "reveal"] },
+  { mime = "application/x-bzip2",        use = ["extract", "reveal"] },
+  { mime = "application/x-7z-compressed", use = ["extract", "reveal"] },
+  { mime = "application/x-rar",          use = ["extract", "reveal"] },
+  # Directories — entering a dir uses the `enter` action via keymap.toml,
+  # not `open`. This rule is the fallback when explicitly invoked.
+  { name = "*/", use = ["edit", "open", "reveal"] },
+  # Everything else (text, json, code, unknown MIME) → Helix first.
+  { mime = "*", use = ["edit", "open", "reveal"] },
+]
+
+[tasks]
+micro_workers    = 5
+macro_workers    = 10
+bizarre_retry    = 5
+image_alloc      = 536870912
+image_bound      = [0, 0]
+suppress_preload = false

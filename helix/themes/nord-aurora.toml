@@ -1,0 +1,137 @@
+# Nord Aurora — Nord palette with Aurora accents emphasized for syntax,
+# diagnostics, and statusline mode indicators.
+# Palette ref: https://www.nordtheme.com/docs/colors-and-palettes
+
+# ─── Syntax ───────────────────────────────────────────────────────────────
+"attribute"                 = "yellow"
+"comment"                   = { fg = "polar3", modifiers = ["italic"] }
+"constant"                  = "orange"
+"constant.numeric"          = "purple"
+"constant.character.escape" = "frost0"
+"constant.builtin"          = "purple"
+"constructor"               = "frost0"
+"function"                  = "frost1"
+"function.macro"            = "frost0"
+"function.method"           = "frost1"
+"function.builtin"          = "frost1"
+"keyword"                   = "purple"
+"keyword.control"           = "purple"
+"keyword.operator"          = "frost2"
+"keyword.directive"         = "frost2"
+"label"                     = "frost2"
+"namespace"                 = "frost2"
+"operator"                  = "frost1"
+"punctuation"               = "snow0"
+"punctuation.delimiter"     = "snow0"
+"punctuation.bracket"       = "snow0"
+"special"                   = "orange"
+"string"                    = "green"
+"string.regexp"             = "orange"
+"string.special"            = "frost0"
+"tag"                       = "frost2"
+"type"                      = "yellow"
+"type.builtin"              = "frost1"
+"variable"                  = "snow0"
+"variable.builtin"          = "purple"
+"variable.parameter"        = "snow0"
+"variable.other.member"     = "frost0"
+
+# ─── Markup ───────────────────────────────────────────────────────────────
+"markup.heading"   = { fg = "frost1", modifiers = ["bold"] }
+"markup.heading.1" = { fg = "frost0", modifiers = ["bold"] }
+"markup.heading.2" = { fg = "frost1", modifiers = ["bold"] }
+"markup.heading.3" = { fg = "frost2", modifiers = ["bold"] }
+"markup.heading.marker" = "polar3"
+"markup.bold"      = { modifiers = ["bold"] }
+"markup.italic"    = { modifiers = ["italic"] }
+"markup.list"      = "frost1"
+"markup.link.url"  = { fg = "frost2", underline = { style = "line" } }
+"markup.link.text" = "frost1"
+"markup.quote"     = { fg = "polar3", modifiers = ["italic"] }
+"markup.raw"       = "green"
+
+# ─── Diff ─────────────────────────────────────────────────────────────────
+"diff.plus"  = "green"
+"diff.minus" = "red"
+"diff.delta" = "yellow"
+
+# ─── UI ───────────────────────────────────────────────────────────────────
+# `ui.background` is intentionally NOT set so Ghostty's window transparency
+# shows through. Only elements that need contrast (mode badges, cursors,
+# selections, popups, the active statusline) declare a `bg`.
+"ui.background.separator" = "polar1"
+# Cursor colour is unified to frost1 across Helix / ZHM / Ghostty so the
+# focus point reads the same regardless of which app owns the cursor.
+# Mode differentiation comes from cursor shape (set in helix/config.toml:
+# block / bar / underline), not colour.
+"ui.cursor"              = { fg = "polar0", bg = "frost1" }
+"ui.cursor.primary"      = { fg = "polar0", bg = "frost1" }
+"ui.cursor.match"        = { fg = "yellow", underline = { style = "line" } }
+"ui.cursor.insert"       = { fg = "polar0", bg = "frost1" }
+"ui.cursor.select"       = { fg = "polar0", bg = "frost1" }
+"ui.linenr"              = { fg = "polar3" }
+"ui.linenr.selected"     = { fg = "snow0", modifiers = ["bold"] }
+"ui.selection"           = { bg = "polar2" }
+"ui.selection.primary"   = { bg = "polar3" }
+
+# Statusline — Aurora as mode indicator. The bar itself uses #252A33 — one
+# notch DARKER than the editor surface — matching the tmux status bar so
+# the two layered bars at the bottom of the terminal share the same
+# recessed shade. Inlined as hex because helix's palette parser rejects
+# names with underscores (logs: "Malformed ANSI: polar_dim").
+"ui.statusline"          = { fg = "snow0", bg = "#252A33" }
+"ui.statusline.inactive" = { fg = "polar3" }
+"ui.statusline.normal"   = { fg = "polar0", bg = "frost1", modifiers = ["bold"] }
+"ui.statusline.insert"   = { fg = "polar0", bg = "green",  modifiers = ["bold"] }
+"ui.statusline.select"   = { fg = "polar0", bg = "yellow", modifiers = ["bold"] }
+
+"ui.bufferline"          = { fg = "polar3" }
+"ui.bufferline.active"   = { fg = "snow2", modifiers = ["bold"] }
+
+# Popups stay opaque so floating content is readable over transparent panes
+"ui.popup"               = { bg = "polar1" }
+"ui.popup.info"          = { fg = "snow0", bg = "polar1" }
+"ui.window"              = { fg = "polar3" }
+"ui.help"                = { fg = "snow0", bg = "polar1" }
+"ui.menu"                = { fg = "snow0", bg = "polar1" }
+"ui.menu.selected"       = { fg = "polar0", bg = "frost1", modifiers = ["bold"] }
+"ui.menu.scroll"         = { fg = "snow0", bg = "polar2" }
+"ui.text"                = "snow0"
+"ui.text.focus"          = { fg = "snow2", modifiers = ["bold"] }
+"ui.text.inactive"       = "polar3"
+"ui.virtual.whitespace"  = "polar2"
+"ui.virtual.indent-guide" = "polar1"
+"ui.virtual.inlay-hint"  = { fg = "polar3", modifiers = ["italic"] }
+"ui.virtual.wrap"        = "polar3"
+"ui.virtual.jump-label"  = { fg = "orange", modifiers = ["bold"] }
+
+# ─── Diagnostics — Aurora-driven ──────────────────────────────────────────
+"diagnostic.error"   = { underline = { color = "red",    style = "curl" } }
+"diagnostic.warning" = { underline = { color = "yellow", style = "curl" } }
+"diagnostic.info"    = { underline = { color = "frost0", style = "curl" } }
+"diagnostic.hint"    = { underline = { color = "frost1", style = "curl" } }
+"error"   = "red"
+"warning" = "yellow"
+"info"    = "frost1"
+"hint"    = "frost0"
+
+# ─── Palette (canonical Nord) ─────────────────────────────────────────────
+# Helix's palette parser rejects names with underscores; #252A33 (the
+# darker shade used by the statusline + tmux bar) is inlined where used.
+[palette]
+polar0 = "#2E3440"  # nord0  — base background
+polar1 = "#3B4252"  # nord1  — lighter background
+polar2 = "#434C5E"  # nord2  — selection
+polar3 = "#4C566A"  # nord3  — comments / inactive
+snow0  = "#D8DEE9"  # nord4  — base foreground
+snow1  = "#E5E9F0"  # nord5
+snow2  = "#ECEFF4"  # nord6  — emphasized text
+frost0 = "#8FBCBB"  # nord7  — calm cyan
+frost1 = "#88C0D0"  # nord8  — primary frost
+frost2 = "#81A1C1"  # nord9  — keywords / namespaces
+frost3 = "#5E81AC"  # nord10 — deep blue
+red    = "#BF616A"  # nord11 — error / diff-minus
+orange = "#D08770"  # nord12 — cursor / constants
+yellow = "#EBCB8B"  # nord13 — types / warnings
+green  = "#A3BE8C"  # nord14 — strings / diff-plus
+purple = "#B48EAD"  # nord15 — keywords / numerics

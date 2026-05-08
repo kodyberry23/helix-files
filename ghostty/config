@@ -1,0 +1,95 @@
+# By default Reload config with shft + cmd + ,
+config-file = themes/nord-aurora
+# Slight transparency over the Polar Night background; blur softens the
+# desktop behind it without washing the foreground out. `background-blur`
+# accepts a nonnegative integer (intensity) or `true`/`false`; 20 is the
+# default `true` value per the docs.
+background-opacity = 0.92
+background-blur = 20
+maximize = true
+font-family = JetBrainsMonoNL Nerd Font
+font-size = 12
+# Slight extra cell height so tmux's pane-border-status row has visual
+# breathing room from the pane content below it. Side-effect: every row
+# in every app gains the same gap (so Helix code is slightly less dense
+# vertically). 12% feels right for 12pt JetBrainsMono.
+adjust-cell-height = 12%
+cursor-style = block
+cursor-style-blink = false
+cursor-color = cell-foreground
+cursor-text = cell-background
+
+macos-titlebar-style = tabs
+macos-titlebar-proxy-icon = hidden
+macos-option-as-alt = true
+mouse-hide-while-typing = true
+
+confirm-close-surface = false
+window-decoration = auto
+window-padding-x = 10
+window-padding-y = 10
+window-padding-balance = false
+
+auto-update = check
+auto-update-channel = stable
+
+# extras
+# `no-cursor` disables Ghostty's automatic cursor-shape management so apps
+# like zsh-helix-mode can drive cursor shape via DECSCUSR (\e[N q).
+shell-integration-features = no-cursor
+copy-on-select = clipboard
+# cmd or alt c copy (not vim yank)
+
+# Custom Keybinds & Config (super represents cmd key on mac)
+# For Simple Keybinds
+keybind = super+i=inspector:toggle
+keybind = super+b>,=toggle_quick_terminal
+
+# Similar Tmux but with Ghostty
+# (ctrl b for tmux -> cmb b for ghostty)
+keybind = super+b>r=reload_config
+keybind = super+b>x=close_surface
+# this only works if you have `macos-titlebar-style = tabs or native or transparent`
+# else it behaves like new window
+keybind = super+b>c=new_tab
+keybind = super+b>n=new_window
+
+# tab nav
+keybind = super+b>1=goto_tab:1
+keybind = super+b>2=goto_tab:2
+keybind = super+b>3=goto_tab:3
+keybind = super+b>4=goto_tab:4
+keybind = super+b>5=goto_tab:5
+keybind = super+b>6=goto_tab:6
+keybind = super+b>7=goto_tab:7
+keybind = super+b>8=goto_tab:8
+keybind = super+b>9=goto_tab:9
+
+# splitting
+keybind = super+b>\=new_split:right
+keybind = super+b>-=new_split:down
+keybind = super+b>e=equalize_splits
+
+# split nav (setting this to control will not work if tmux already uses it)
+keybind = super+b>h=goto_split:left
+keybind = super+b>j=goto_split:bottom
+keybind = super+b>k=goto_split:top
+keybind = super+b>l=goto_split:right
+
+# disable default ghostty keybinds
+keybind = cmd+d=unbind
+keybind = cmd+shift+d=unbind
+keybind = cmd+[=unbind
+keybind = cmd+]=unbind
+keybind = cmd+opt+up=unbind
+keybind = cmd+opt+down=unbind
+keybind = cmd+opt+left=unbind
+keybind = cmd+opt+right=unbind
+
+#Shaders
+custom-shader = shaders/cursor_warp.glsl
+# custom-shader = shaders/bettercrt.glsl
+# custom-shader = shaders/retro-terminal.glsl
+macos-icon = custom
+macos-custom-icon = ~/.config/ghostty/ghostty-black.icns
+

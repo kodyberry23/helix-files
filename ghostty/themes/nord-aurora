@@ -1,0 +1,51 @@
+# Nord Aurora — canonical Nord palette mapped to ANSI 16 plus
+# Aurora-driven background/foreground.
+# Reference: https://www.nordtheme.com/docs/colors-and-palettes
+# Note: Ghostty's `palette = N=#hex` parser does not accept trailing
+# comments on the same line — keep palette annotations on their own lines.
+
+# ─── ANSI 0–7 ─────────────────────────────────────────────────────────────
+# 0 black           : Polar Night nord1
+# 1 red             : Aurora      nord11
+# 2 green           : Aurora      nord14
+# 3 yellow          : Aurora      nord13
+# 4 blue            : Frost       nord10
+# 5 magenta         : Aurora      nord15
+# 6 cyan            : Frost       nord8
+# 7 white           : Snow Storm  nord4
+palette = 0=#3B4252
+palette = 1=#BF616A
+palette = 2=#A3BE8C
+palette = 3=#EBCB8B
+palette = 4=#5E81AC
+palette = 5=#B48EAD
+palette = 6=#88C0D0
+palette = 7=#D8DEE9
+
+# ─── ANSI 8–15 (bright) ───────────────────────────────────────────────────
+# 8  bright black   : Polar Night nord3
+# 9  bright red     : Aurora      nord11
+# 10 bright green   : Aurora      nord14
+# 11 bright yellow  : Aurora      nord13
+# 12 bright blue    : Frost       nord9
+# 13 bright magenta : Aurora      nord15
+# 14 bright cyan    : Frost       nord7
+# 15 bright white   : Snow Storm  nord6
+palette = 8=#4C566A
+palette = 9=#BF616A
+palette = 10=#A3BE8C
+palette = 11=#EBCB8B
+palette = 12=#81A1C1
+palette = 13=#B48EAD
+palette = 14=#8FBCBB
+palette = 15=#ECEFF4
+
+# ─── Surface ──────────────────────────────────────────────────────────────
+background           = #2E3440
+foreground           = #D8DEE9
+# Cursor colour matches Helix `ui.cursor.*` (frost1) and ZHM ZHM_CURSOR_*
+# overrides so the cursor looks the same in every layer.
+cursor-color         = #88C0D0
+cursor-text          = #2E3440
+selection-background = #434C5E
+selection-foreground = #ECEFF4
