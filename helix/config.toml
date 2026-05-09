@@ -67,35 +67,21 @@ newline = "⏎"
 "H" = "goto_line_start"
 "L" = "goto_line_end"
 
-# Yazi as file picker. The whole flow is wrapped in scripts/yazi-pick.sh:
-# inside tmux the script uses `display-popup` so yazi floats over helix
-# without forcing a full redraw on exit (instant feel); outside tmux it
-# runs yazi directly. The script writes the picked path to stdout; on
-# cancel (q / Esc in yazi) it writes nothing, so :open / :vsplit get an
-# empty arg, error silently, and leave the current buffer untouched.
-#
-# %sh{} blocks until the script returns, so this single command does the
-# work of the previous 4-step chain — no async race between :sh rm and
-# :insert-output, no temp-file collisions, no leftover buffers on cancel.
-# Single entrypoint — `space e` opens yazi as a file picker. The action
-# (open in current view vs. vertical split) is decided FROM WITHIN yazi:
-#   Enter  → :open <picked>
-#   C-v    → :vsplit <picked>  (yazi-side keybind in yazi/keymap.toml)
+# Yazi as file picker. `space e` opens yazi; the action (open vs. vsplit)
+# is decided FROM WITHIN yazi:
+#   Enter → :open <picked>
+#   C-v   → :vsplit <picked>  (yazi-side keybind in yazi/keymap.toml)
 #
 # Helix can't pick between :open and :vsplit from one substitution, so the
-# chain runs both: each command fires, but the wrapper outputs a path only
-# for its corresponding mode and an inert sentinel (current buffer for
-# :open / `/dev/null` for :vsplit) for the other. The trailing `:echo ""`
-# clears the status-bar error left behind when :vsplit rejects /dev/null
-# (IrregularFile — character device isn't a regular file). The split is
-# correctly skipped either way; this just hides the noise.
+# chain runs both. The wrapper emits a real path only for its corresponding
+# mode and an inert sentinel for the other (current buffer for :open,
+# `/dev/null` for :vsplit). The trailing `:echo ""` clears the status-bar
+# error :vsplit raises against /dev/null (character device → IrregularFile).
+#
+# The :redraw repaints helix after yazi exits. The which-key popup-flash
+# is suppressed in yazi-pick.sh itself (it clears the main screen before
+# yazi enters alt-screen, so the restored pixels are blank).
 "space"."e" = [
-    # First :redraw forces a frame without the space-menu which-key popup
-    # before yazi takes the alt-screen. Without this the popup pixels are
-    # what gets restored when yazi exits, until helix re-renders — visible
-    # as a "flash". Clearing the popup state happens internally before the
-    # chain runs, but the SCREEN still shows the previous frame.
-    ":redraw",
     ":insert-output $HOME/projects/helix-files/scripts/yazi-pick.sh run '%{file_path_absolute}'",
     ":redraw",
     ":open \"%sh{$HOME/projects/helix-files/scripts/yazi-pick.sh open '%{file_path_absolute}'}\"",

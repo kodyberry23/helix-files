@@ -33,6 +33,11 @@ case "$MODE" in
 		# Wipe stale state from a previous invocation in this helix.
 		rm -f "$RESULT" "$MARKER"
 
+		# Clear the main screen BEFORE yazi takes alt-screen — yazi's exit
+		# restores main-screen pixels, which would otherwise still contain
+		# helix's which-key popup until helix's :redraw (async) completes.
+		printf '\033[2J\033[H' > /dev/tty
+
 		# Where yazi opens to. Real path → its parent; otherwise cwd.
 		local_start="$CURRENT"
 		[[ -e "$CURRENT" ]] || local_start="."

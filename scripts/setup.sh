@@ -200,13 +200,13 @@ fi
 # `hx` uses HELIX_RUNTIME first, then falls back to compiled-in defaults.
 export HELIX_RUNTIME="$HOME/src/helix/runtime"
 
-# fzf — Nord Aurora colors and ergonomic defaults. These exports replace
-# any previous FZF_* values, so the last block to define them wins.
+# fzf — Deep Nord Aurora colors and ergonomic defaults. These exports
+# replace any previous FZF_* values, so the last block to define them wins.
 export FZF_DEFAULT_OPTS="
   --color=bg:-1,bg+:-1,gutter:-1,fg:#D8DEE9,fg+:#ECEFF4
-  --color=hl:#88C0D0,hl+:#D08770,header:#88C0D0,info:#EBCB8B
-  --color=prompt:#88C0D0,pointer:#D08770,marker:#A3BE8C,spinner:#88C0D0
-  --color=border:#4C566A
+  --color=hl:#74BCD9,hl+:#D97757,header:#74BCD9,info:#DDB867
+  --color=prompt:#74BCD9,pointer:#D97757,marker:#8DBC6E,spinner:#74BCD9
+  --color=border:#4F5870
   --prompt='∼ ' --pointer='▶' --marker='✓'
   --layout='reverse' --border='rounded' --height='60%'
   --preview-window='border-rounded'
@@ -271,7 +271,7 @@ if (( ! ${+functions[__zhm_mode_normal]} )) && [[ -f "$HOME/.config/zsh-helix-mo
 	# Override ZHM cursor colour to frost1 (matches Helix / Ghostty cursor
 	# colours). Shape differs per mode: \e[2 q = steady block, \e[5 q =
 	# blinking beam. These must be set BEFORE sourcing — the plugin uses `:=`.
-	__zhm_cursor=$'\e[0m\e[%s q\e]12;#88C0D0\a'
+	__zhm_cursor=$'\e[0m\e[%s q\e]12;#74BCD9\a'
 	export ZHM_CURSOR_NORMAL=${__zhm_cursor//%s/2}
 	export ZHM_CURSOR_INSERT=${__zhm_cursor//%s/5}
 	export ZHM_CURSOR_SELECT=${__zhm_cursor//%s/2}
