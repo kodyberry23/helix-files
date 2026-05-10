@@ -24,7 +24,7 @@ image_quality = 75
 [opener]
 # `block = true` makes yazi suspend to its secondary screen while Helix
 # runs, returning to the file list when hx exits. This is the integration
-# point the sessionizer relies on: tmux pane → yazi → helix → yazi → shell.
+# point the sessionizer relies on: zellij pane → yazi → helix → yazi → shell.
 #
 # DIAGNOSTIC: also log the launch attempt to /tmp/yazi-edit.log so we can
 # see whether yazi is firing this opener at all and what args it gets.

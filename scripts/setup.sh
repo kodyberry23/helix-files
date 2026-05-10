@@ -30,10 +30,10 @@ Bootstrap helix-files on a fresh macOS machine.
 
 What it does:
   1. Installs Homebrew if missing
-  2. Installs required Homebrew packages (tmux, yazi, mise, jdtls,
+  2. Installs required Homebrew packages (zellij, yazi, mise, jdtls,
      erlang_ls, oh-my-posh, fzf, fd, zoxide, eza, bat, tree, git) and the
      Ghostty cask
-  3. Symlinks ~/.config/{helix,tmux,yazi,mise,ghostty,oh-my-posh} -> <repo>/<name>
+  3. Symlinks ~/.config/{helix,zellij,yazi,mise,ghostty,oh-my-posh} -> <repo>/<name>
   4. Runs `mise install` to fetch runtimes / LSPs / formatters
   5. Builds Helix nightly from source (~/src/helix) via cargo
   6. Adds a managed block to ~/.zshrc with: mise activate, ~/.cargo/bin on
@@ -163,7 +163,7 @@ ensure_symlink() {
 
 symlink_configs() {
 	info "~/.config symlinks"
-	local names=(helix tmux yazi mise ghostty oh-my-posh zsh-helix-mode)
+	local names=(helix zellij yazi mise ghostty oh-my-posh zsh-helix-mode)
 	local failures=0
 	for name in "${names[@]}"; do
 		if [[ ! -d "$REPO_ROOT/$name" ]]; then
@@ -260,9 +260,9 @@ fi
 # zsh-helix-mode — Helix-style modal line editor in zsh.
 # Guarded so a previous block can win if it already loaded ZHM.
 # KEYTIMEOUT=1 (10ms) makes mode-switch via Esc feel instant; the default
-# of 400ms makes ZHM seem laggy or "broken" especially inside tmux.
+# of 400ms makes ZHM seem laggy or "broken" especially inside multiplexers.
 # Guard on the FUNCTION existing rather than $ZHM_MODE — the plugin exports
-# ZHM_MODE, so it's inherited by every child shell (including tmux panes),
+# ZHM_MODE, so it's inherited by every child shell (including zellij panes),
 # which would skip a value-based guard on init. Functions don't export, so
 # this correctly detects "ZHM not yet loaded *in this shell*".
 if (( ! ${+functions[__zhm_mode_normal]} )) && [[ -f "$HOME/.config/zsh-helix-mode/zsh-helix-mode.plugin.zsh" ]]; then
@@ -288,14 +288,14 @@ fi
 # so Esc → ZHM normal mode feels instant instead of dragging for 400ms.
 KEYTIMEOUT=1
 
-# Helix + tmux sessionizer
+# Helix + zellij sessionizer
 alias hs="__REPO__/scripts/sessionizer.sh"
 
-# tmux session helpers
-alias tls='tmux ls'                   # list sessions
-alias ta='tmux attach'                # attach to most-recent (or `ta -t name`)
-alias tks='tmux kill-session -t'      # kill one session — usage: tks <name>
-alias tka='tmux kill-server'          # kill the whole server (all sessions)
+# zellij session helpers
+alias zls='zellij list-sessions'              # list sessions
+alias za='zellij attach'                      # attach (with -c create); usage: za <name>
+alias zks='zellij kill-session'               # kill one session — usage: zks <name>
+alias zka='zellij kill-all-sessions --yes'    # kill all sessions
 
 # <<< helix-files managed block <<<
 EOF

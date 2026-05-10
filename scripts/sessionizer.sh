@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 
-# tmux + helix sessionizer — create/attach a tmux session named after a
-# chosen directory and open Helix in its first pane.
+# zellij + helix sessionizer — create/attach a zellij session named after
+# a chosen directory. New sessions auto-launch yazi via the default layout
+# at zellij/layouts/default.kdl (yazi → pick a file → hx via yazi opener).
 # Usage: sessionizer.sh [path]
 #   - If a path arg is provided, use it.
 #   - Otherwise, pick from PROJECT_ROOTS via fzf (combined with zoxide frecency).
-#   - Handles switching when already inside tmux.
+#   - Handles switching when already inside zellij.
 
 set -euo pipefail
 
@@ -15,8 +16,8 @@ set -euo pipefail
 # useful than the symbol-prefixed multi-step format.
 err() { printf "sessionizer: %s\n" "$*" >&2; }
 
-if ! has_cmd tmux; then
-	err "tmux not found in PATH"
+if ! has_cmd zellij; then
+	err "zellij not found in PATH"
 	exit 1
 fi
 if ! has_cmd hx; then
@@ -68,26 +69,21 @@ if has_cmd zoxide; then
 	zoxide add "$selected" 2>/dev/null || true
 fi
 
-# Sanitize: tmux session names cannot contain `.` or `:`; spaces are awkward.
+# Sanitize: zellij session names disallow some shell-special chars; keep
+# things alphanumeric-with-hyphens.
 session_name=$(basename "$selected" | tr ' .:' '___')
 
-# ─── Create session if missing ────────────────────────────────────────────
-# `new-session -ds` creates detached and is a no-op if it would clobber an
-# existing session with the same name; we use has-session to gate it.
-if ! tmux has-session -t="$session_name" 2>/dev/null; then
-	# Open yazi as the pane's startup command. yazi loads near-instantly
-	# (no LSPs, no tree-sitter), then defers to helix on file open via the
-	# `block = true` opener in yazi/yazi.toml. Flow:
-	#   1. tmux pane spawns directly into yazi (no zshrc preamble).
-	#   2. Pick a file → yazi suspends to alternate screen, hx runs.
-	#   3. `:q` in hx → yazi resumes.
-	#   4. `q` in yazi → exec interactive shell takes over the pane.
-	tmux new-session -ds "$session_name" -c "$selected" "yazi ; exec ${SHELL:-zsh} -i"
+# ─── Attach or create ─────────────────────────────────────────────────────
+# `zellij attach -c` attaches if the session exists, creates it otherwise.
+# When created fresh, default_layout (set in config.kdl to "default")
+# drives the yazi-on-startup flow.
+#
+# Inside zellij: zellij has no in-place "switch-session" — refuse with a
+# hint so the user detaches first. ZELLIJ env var is set inside sessions.
+if [[ -n ${ZELLIJ:-} ]]; then
+	err "already inside zellij; detach first (Ctrl-q) then re-run hs"
+	exit 1
 fi
 
-# ─── Attach or switch ─────────────────────────────────────────────────────
-if [[ -n ${TMUX:-} ]]; then
-	exec tmux switch-client -t "$session_name"
-else
-	exec tmux attach -t "$session_name"
-fi
+cd "$selected"
+exec zellij attach --create "$session_name"

@@ -9,10 +9,10 @@ background-blur = 20
 maximize = true
 font-family = JetBrainsMonoNL Nerd Font
 font-size = 12
-# Slight extra cell height so tmux's pane-border-status row has visual
-# breathing room from the pane content below it. Side-effect: every row
-# in every app gains the same gap (so Helix code is slightly less dense
-# vertically). 12% feels right for 12pt JetBrainsMono.
+# Slight extra cell height so zellij's pane frames + tab bar have visual
+# breathing room. Side-effect: every row in every app gains the same gap
+# (so Helix code is slightly less dense vertically). 12% feels right for
+# 12pt JetBrainsMono.
 adjust-cell-height = 12%
 cursor-style = block
 cursor-style-blink = false
@@ -70,7 +70,8 @@ keybind = super+b>\=new_split:right
 keybind = super+b>-=new_split:down
 keybind = super+b>e=equalize_splits
 
-# split nav (setting this to control will not work if tmux already uses it)
+# split nav (using cmd+b prefix instead of ctrl-prefixed bindings to avoid
+# colliding with the zellij multiplexer running inside Ghostty)
 keybind = super+b>h=goto_split:left
 keybind = super+b>j=goto_split:bottom
 keybind = super+b>k=goto_split:top

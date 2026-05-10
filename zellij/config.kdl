@@ -1,0 +1,65 @@
+// Deep Nord Aurora zellij configuration.
+// Replaces the previous tmux setup. Keybindings keep zellij's mode-based
+// model AND add direct Alt-key shortcuts that mirror the old tmux setup
+// (Alt-{h,j,k,l,t,w,1..9,,,.,f}) so muscle memory carries over.
+
+theme "deep-nord-aurora"
+
+// Skip the tip/release-notes screens that show on first launch and on
+// version bumps. The user enters sessions exclusively via the `hs`
+// sessionizer alias, which always invokes zellij with a session name.
+show_startup_tips false
+show_release_notes false
+
+// Pane frames + rounded corners — Nord Aurora aesthetic. Frames carry
+// the active/inactive accent (active = frost1 cyan, inactive = polar3),
+// and unlike tmux's shared-border architecture they can highlight all
+// 4 sides of the active pane without corner spillover.
+pane_frames true
+rounded_corners true
+
+default_mode "normal"
+default_layout "default"
+
+mouse_mode true
+copy_command "pbcopy"
+copy_on_select true
+scroll_buffer_size 50000
+
+// Detach (rather than terminate) on SIGTERM/SIGHUP so closing the Ghostty
+// window leaves sessions resumable via `zellij attach`.
+on_force_close "detach"
+
+// Persist sessions (tabs, panes, cwds, running commands) so a crashed or
+// closed Ghostty window can be reattached with state restored.
+session_serialization true
+serialize_pane_viewport true
+
+// Keybindings: keep zellij's defaults (mode-based — Ctrl-p pane, Ctrl-t
+// tab, Ctrl-n resize, Ctrl-s scroll, Ctrl-o session) and OVERLAY the
+// direct Alt-key shortcuts that match the previous tmux setup.
+keybinds {
+    shared_except "locked" {
+        // Tab management — direct (no mode prefix needed)
+        bind "Alt t" { NewTab; }
+        bind "Alt w" { CloseTab; }
+        bind "Alt 1" { GoToTab 1; }
+        bind "Alt 2" { GoToTab 2; }
+        bind "Alt 3" { GoToTab 3; }
+        bind "Alt 4" { GoToTab 4; }
+        bind "Alt 5" { GoToTab 5; }
+        bind "Alt 6" { GoToTab 6; }
+        bind "Alt 7" { GoToTab 7; }
+        bind "Alt 8" { GoToTab 8; }
+        bind "Alt 9" { GoToTab 9; }
+        bind "Alt ," { GoToPreviousTab; }
+        bind "Alt ." { GoToNextTab; }
+        // Pane fullscreen toggle (was tmux M-f / prefix f)
+        bind "Alt f" { ToggleFocusFullscreen; }
+        // Detach (was tmux Ctrl-q). Replaces zellij's default Quit binding
+        // — Quit is destructive (closes the session entirely); detach is
+        // what's wanted 95% of the time. Quit is still reachable via
+        // session mode (Ctrl-o, then `q`).
+        bind "Ctrl q" { Detach; }
+    }
+}

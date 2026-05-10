@@ -75,10 +75,9 @@
 "ui.selection.primary"   = { bg = "polar3" }
 
 # Statusline — Aurora as mode indicator. The bar itself uses #13171F — one
-# notch DARKER than the editor surface — matching the tmux status bar so
-# the two layered bars at the bottom of the terminal share the same
-# recessed shade. Inlined as hex because helix's palette parser rejects
-# names with underscores (logs: "Malformed ANSI: polar_dim").
+# notch DARKER than the editor surface — so it reads as a recessed strip.
+# Inlined as hex because helix's palette parser rejects names with
+# underscores (logs: "Malformed ANSI: polar_dim").
 "ui.statusline"          = { fg = "snow0", bg = "#13171F" }
 "ui.statusline.inactive" = { fg = "polar3" }
 "ui.statusline.normal"   = { fg = "polar0", bg = "frost1", modifiers = ["bold"] }
@@ -118,7 +117,7 @@
 # ─── Palette (Deep Nord Aurora) ───────────────────────────────────────────
 # Backgrounds pushed inkier with a blue undertone; frosts and auroras
 # nudged toward higher saturation. Helix's palette parser rejects names
-# with underscores; #13171F (statusline / tmux bar) is inlined where used.
+# with underscores; #13171F (statusline shade) is inlined where used.
 [palette]
 polar0 = "#1A1F28"  # deep ink — base background
 polar1 = "#232934"  # lighter background

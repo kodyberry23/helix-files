@@ -1,0 +1,13 @@
+// Default zellij layout — mirrors the previous tmux sessionizer flow.
+// New sessions open into yazi as the file picker; on yazi quit, the
+// command chain `exec $SHELL -i` replaces yazi with an interactive
+// shell so the pane stays usable.
+//
+// Subsequent panes/tabs spawned via Alt-t / Ctrl-p n use the implicit
+// shell default (no yazi auto-launch).
+layout {
+    pane command="bash" {
+        args "-c" "yazi ; exec ${SHELL:-zsh} -i"
+        close_on_exit true
+    }
+}
