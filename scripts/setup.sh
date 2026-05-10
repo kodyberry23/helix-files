@@ -318,12 +318,18 @@ typeset -ga precmd_functions preexec_functions
 # TMUX doesn't reroute yank/paste through `tmux save-buffer`. yazi/yazi.toml
 # duplicates this for the yazi → hx launch path (bash opener doesn't read
 # ~/.zshrc).
+# Trailing `clear` works around zellij/4893 — fragments from helix's
+# alt-screen buffer leak into the pane scrollback on exit, leaving file
+# content visible above the next prompt. clear wipes the visible viewport
+# so you land on a clean line. Same pattern works for any TUI (yazi, less,
+# htop) — add `; clear` to the call site if you hit the same artifact.
 hx() {
 	if [[ -n ${ZELLIJ:-} ]]; then
 		TMUX=zellij command hx "$@"
 	else
 		command hx "$@"
 	fi
+	clear
 }
 
 # Helix + zellij sessionizer
