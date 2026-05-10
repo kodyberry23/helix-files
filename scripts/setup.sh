@@ -271,10 +271,15 @@ if (( ! ${+functions[__zhm_mode_normal]} )) && [[ -f "$HOME/.config/zsh-helix-mo
 	# Override ZHM cursor colour to frost1 (matches Helix / Ghostty cursor
 	# colours). Shape differs per mode: \e[2 q = steady block, \e[5 q =
 	# blinking beam. These must be set BEFORE sourcing — the plugin uses `:=`.
-	__zhm_cursor=$'\e[0m\e[%s q\e]12;#74BCD9\a'
-	export ZHM_CURSOR_NORMAL=${__zhm_cursor//%s/2}
-	export ZHM_CURSOR_INSERT=${__zhm_cursor//%s/5}
-	export ZHM_CURSOR_SELECT=${__zhm_cursor//%s/2}
+	# Placeholder is __SHAPE__ rather than %s because zsh's `${var//%s/N}`
+	# parameter expansion silently fails to match `%s` (treats `%` specially
+	# in patterns regardless of EXTENDED_GLOB), leaving a literal `\e[%s q`
+	# in the cursor escape — invalid DECSCUSR, so the cursor shape never
+	# updates per mode. Alphanumeric placeholder sidesteps the quirk.
+	__zhm_cursor=$'\e[0m\e[__SHAPE__ q\e]12;#74BCD9\a'
+	export ZHM_CURSOR_NORMAL=${__zhm_cursor//__SHAPE__/2}
+	export ZHM_CURSOR_INSERT=${__zhm_cursor//__SHAPE__/5}
+	export ZHM_CURSOR_SELECT=${__zhm_cursor//__SHAPE__/2}
 	unset __zhm_cursor
 	source "$HOME/.config/zsh-helix-mode/zsh-helix-mode.plugin.zsh"
 	# Start each shell in normal mode. __zhm_mode_normal does the full
