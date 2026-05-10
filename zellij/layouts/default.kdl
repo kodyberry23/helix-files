@@ -1,10 +1,10 @@
-// Default zellij layout — mirrors the previous tmux sessionizer flow.
-// New sessions open into yazi as the file picker; on yazi quit, the
-// command chain `exec $SHELL -i` replaces yazi with an interactive
-// shell so the pane stays usable.
+// Default zellij layout. New sessions auto-launch yazi as the file
+// picker; on `q` in yazi the chained `exec $SHELL -i` replaces the
+// process with an interactive shell so the pane stays usable.
 //
-// Subsequent panes/tabs spawned via Alt-t / Ctrl-p n use the implicit
-// shell default (no yazi auto-launch).
+// No tab-bar / status-bar plugins — the chrome eats vertical space and
+// the mode/session info isn't worth the rows. Keybindings give the same
+// signals (mode visible via cursor shape; sessions via `zls`/`za`).
 layout {
     pane command="bash" {
         args "-c" "yazi ; exec ${SHELL:-zsh} -i"

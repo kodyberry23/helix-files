@@ -36,8 +36,12 @@ border_style  = { fg = "#4F5870" }                                    # polar3
 syntect_theme = ""
 
 [mode]
-normal_main = { fg = "#1A1F28", bg = "#74BCD9", bold = true }         # frost1
-normal_alt  = { fg = "#74BCD9", bg = "#232934" }
+# Mode badges use the same soft-white-on-dark accent as zellij's active
+# pane frame / active tab so the focus signal reads consistently across
+# the whole stack. Saturated cyan/green here clashed with zellij's
+# subdued chrome and read as a stray "green" highlight.
+normal_main = { fg = "#1A1F28", bg = "#D8DEE9", bold = true }         # snow0
+normal_alt  = { fg = "#D8DEE9", bg = "#232934" }
 select_main = { fg = "#1A1F28", bg = "#DDB867", bold = true }         # yellow
 select_alt  = { fg = "#DDB867", bg = "#232934" }
 unset_main  = { fg = "#1A1F28", bg = "#B97AB6", bold = true }         # purple

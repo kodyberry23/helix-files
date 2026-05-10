@@ -10,11 +10,21 @@ auto-format = false
 auto-save = true
 completion-trigger-len = 1
 true-color = true
+# Pin to pbcopy/pbpaste. Auto-detect would route through `tmux save-buffer`
+# when TMUX is set + tmux is on PATH, and we deliberately set TMUX=zellij
+# inside zellij sessions (see scripts/setup.sh hx()) for the OSC 11 bg
+# workaround — pinning prevents that from stealing the clipboard.
+clipboard-provider = "pasteboard"
 # Implicitly trust every workspace — skips the "trust this project?" prompt
 # on first open. The flag is named `insecure` because it disables the guard
 # against malicious local-config / language-server payloads in untrusted
 # repos. Safe enough when you only open projects you authored.
 insecure = true
+
+[editor.gutters]
+# Default layout omits a trailing spacer, so the diff stripe sits flush
+# against the buffer content. Add one to give it breathing room.
+layout = ["diagnostics", "spacer", "line-numbers", "spacer", "diff", "spacer"]
 
 [editor.cursor-shape]
 insert = "bar"

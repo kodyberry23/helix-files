@@ -1,20 +1,25 @@
 // Deep Nord Aurora zellij configuration.
 // Replaces the previous tmux setup. Keybindings keep zellij's mode-based
-// model AND add direct Alt-key shortcuts that mirror the old tmux setup
-// (Alt-{h,j,k,l,t,w,1..9,,,.,f}) so muscle memory carries over.
+// model AND add direct Alt-key shortcuts that mirror the previous tmux
+// setup so muscle memory carries over.
 
+// Theme inlined (block at the bottom of this file) — zellij 0.44.0 silently
+// ignored external themes/*.kdl files (zellij-org/zellij#4909, fixed in
+// 0.44.1). Inlining sidesteps that and keeps theme + consumer versioned
+// together. `background 0` renders as ANSI default-bg (\e[49m) so ghostty's
+// window transparency shows through. RGB → palette: 26,31,40 polar0 ·
+// 35,41,52 polar1 · 79,88,112 polar3 · 216,222,233 snow0 · 236,239,244
+// snow2 · 116,188,217 frost1 · 66,111,158 frost3 · 208,78,92 red ·
+// 141,188,110 green · 221,184,103 yellow · 217,119,87 orange · 185,122,182
+// purple.
 theme "deep-nord-aurora"
 
-// Skip the tip/release-notes screens that show on first launch and on
+// Skip the tip / release-notes screens that show on first launch and on
 // version bumps. The user enters sessions exclusively via the `hs`
 // sessionizer alias, which always invokes zellij with a session name.
 show_startup_tips false
 show_release_notes false
 
-// Pane frames + rounded corners — Nord Aurora aesthetic. Frames carry
-// the active/inactive accent (active = frost1 cyan, inactive = polar3),
-// and unlike tmux's shared-border architecture they can highlight all
-// 4 sides of the active pane without corner spillover.
 pane_frames true
 rounded_corners true
 
@@ -31,13 +36,23 @@ scroll_buffer_size 50000
 on_force_close "detach"
 
 // Persist sessions (tabs, panes, cwds, running commands) so a crashed or
-// closed Ghostty window can be reattached with state restored.
+// closed Ghostty window can be reattached with state restored. Tradeoff:
+// LSPs and editor processes get re-spawned on resurrection — fine for
+// helix / yazi / shells.
 session_serialization true
 serialize_pane_viewport true
 
-// Keybindings: keep zellij's defaults (mode-based — Ctrl-p pane, Ctrl-t
-// tab, Ctrl-n resize, Ctrl-s scroll, Ctrl-o session) and OVERLAY the
-// direct Alt-key shortcuts that match the previous tmux setup.
+// Hide the session name from the pane-frame chrome — the session name is
+// already in the status bar; doubling it on every frame is noise.
+ui {
+    pane_frames {
+        hide_session_name true
+    }
+}
+
+// Keybindings: keep zellij's mode-based defaults (Ctrl-p pane / Ctrl-t
+// tab / Ctrl-n resize / Ctrl-s scroll / Ctrl-o session / Ctrl-g locked)
+// and overlay direct Alt-key shortcuts.
 keybinds {
     shared_except "locked" {
         // Tab management — direct (no mode prefix needed)
@@ -52,14 +67,146 @@ keybinds {
         bind "Alt 7" { GoToTab 7; }
         bind "Alt 8" { GoToTab 8; }
         bind "Alt 9" { GoToTab 9; }
-        bind "Alt ," { GoToPreviousTab; }
-        bind "Alt ." { GoToNextTab; }
+        bind "Alt [" { GoToPreviousTab; }
+        bind "Alt ]" { GoToNextTab; }
         // Pane fullscreen toggle (was tmux M-f / prefix f)
         bind "Alt f" { ToggleFocusFullscreen; }
+        // Toggle pane frames on/off (useful when copying with mouse)
+        bind "Alt z" { TogglePaneFrames; }
         // Detach (was tmux Ctrl-q). Replaces zellij's default Quit binding
         // — Quit is destructive (closes the session entirely); detach is
         // what's wanted 95% of the time. Quit is still reachable via
-        // session mode (Ctrl-o, then `q`).
+        // session mode (Ctrl-o, then `q`) or Alt-q below.
         bind "Ctrl q" { Detach; }
+        bind "Alt q"  { Quit; }
+    }
+}
+
+themes {
+    deep-nord-aurora {
+        text_unselected {
+            base       216 222 233
+            background 0
+            emphasis_0 217 119 87
+            emphasis_1 116 188 217
+            emphasis_2 141 188 110
+            emphasis_3 185 122 182
+        }
+        text_selected {
+            base       236 239 244
+            background 35  41  52
+            emphasis_0 217 119 87
+            emphasis_1 116 188 217
+            emphasis_2 141 188 110
+            emphasis_3 185 122 182
+        }
+        ribbon_unselected {
+            base       216 222 233
+            background 35  41  52
+            emphasis_0 217 119 87
+            emphasis_1 116 188 217
+            emphasis_2 221 184 103
+            emphasis_3 185 122 182
+        }
+        ribbon_selected {
+            base       26  31  40
+            background 216 222 233
+            emphasis_0 217 119 87
+            emphasis_1 116 188 217
+            emphasis_2 141 188 110
+            emphasis_3 185 122 182
+        }
+        table_title {
+            base       116 188 217
+            background 0
+            emphasis_0 217 119 87
+            emphasis_1 116 188 217
+            emphasis_2 141 188 110
+            emphasis_3 185 122 182
+        }
+        table_cell_unselected {
+            base       216 222 233
+            background 35  41  52
+            emphasis_0 217 119 87
+            emphasis_1 116 188 217
+            emphasis_2 141 188 110
+            emphasis_3 185 122 182
+        }
+        table_cell_selected {
+            base       236 239 244
+            background 26  31  40
+            emphasis_0 217 119 87
+            emphasis_1 116 188 217
+            emphasis_2 141 188 110
+            emphasis_3 185 122 182
+        }
+        list_unselected {
+            base       216 222 233
+            background 35  41  52
+            emphasis_0 217 119 87
+            emphasis_1 116 188 217
+            emphasis_2 141 188 110
+            emphasis_3 185 122 182
+        }
+        list_selected {
+            base       236 239 244
+            background 26  31  40
+            emphasis_0 217 119 87
+            emphasis_1 116 188 217
+            emphasis_2 141 188 110
+            emphasis_3 185 122 182
+        }
+        frame_selected {
+            base       216 222 233
+            background 0
+            emphasis_0 217 119 87
+            emphasis_1 116 188 217
+            emphasis_2 185 122 182
+            emphasis_3 0
+        }
+        frame_unselected {
+            base       79  88  112
+            background 0
+            emphasis_0 79  88  112
+            emphasis_1 79  88  112
+            emphasis_2 79  88  112
+            emphasis_3 79  88  112
+        }
+        frame_highlight {
+            base       217 119 87
+            background 0
+            emphasis_0 185 122 182
+            emphasis_1 217 119 87
+            emphasis_2 217 119 87
+            emphasis_3 217 119 87
+        }
+        exit_code_success {
+            base       141 188 110
+            background 0
+            emphasis_0 116 188 217
+            emphasis_1 79  88  112
+            emphasis_2 185 122 182
+            emphasis_3 66  111 158
+        }
+        exit_code_error {
+            base       208 78  92
+            background 0
+            emphasis_0 221 184 103
+            emphasis_1 0
+            emphasis_2 0
+            emphasis_3 0
+        }
+        multiplayer_user_colors {
+            player_1  185 122 182
+            player_2  66  111 158
+            player_3  0
+            player_4  221 184 103
+            player_5  116 188 217
+            player_6  0
+            player_7  208 78  92
+            player_8  0
+            player_9  0
+            player_10 0
+        }
     }
 }

@@ -23,7 +23,7 @@ has_cmd() { command -v "$1" >/dev/null 2>&1; }
 # setup.sh installs these; update.sh upgrades them. Helix is intentionally
 # excluded — it's built from source in setup.sh. bat and tree feed the FZF
 # preview commands wired up in the .zshrc managed block.
-BREW_FORMULAS=(zellij yazi mise jdtls erlang_ls oh-my-posh fzf fd zoxide eza bat tree git)
+BREW_FORMULAS=(zellij yazi mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git)
 BREW_CASKS=(ghostty)
 
 # ─── Dry-run flag handling ────────────────────────────────────────────────

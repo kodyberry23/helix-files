@@ -56,10 +56,19 @@
 "diff.delta" = "yellow"
 
 # ─── UI ───────────────────────────────────────────────────────────────────
-# `ui.background` is intentionally NOT set so Ghostty's window transparency
-# shows through. Only elements that need contrast (mode badges, cursors,
-# selections, popups, the active statusline) declare a `bg`.
+# `ui.background = {}` is an EXPLICIT empty style — not the same as omitting
+# the key. Omitting it makes helix fall back to its built-in default theme's
+# opaque background, which paints over ghostty's window transparency. The
+# empty-table form tells helix "no fg, no bg, no modifiers" so cells render
+# with terminal-default-bg (\e[49m) and ghostty's opacity shows through.
+# (See helix-editor/helix#10223.) Only elements that need contrast — mode
+# badges, cursors, selections, popups, the active statusline — declare a bg.
+"ui.background"           = {}
 "ui.background.separator" = "polar1"
+# Gutter (line-number / sign column) needs its own explicit clear — helix
+# paints it as a separate strip whose bg falls back to the default theme's
+# opaque gutter, not to ui.background.
+"ui.gutter"               = {}
 # Cursor colour is unified to frost1 across Helix / ZHM / Ghostty so the
 # focus point reads the same regardless of which app owns the cursor.
 # Mode differentiation comes from cursor shape (set in helix/config.toml:

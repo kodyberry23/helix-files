@@ -33,14 +33,16 @@ What it does:
   2. Installs required Homebrew packages (zellij, yazi, mise, jdtls,
      erlang_ls, oh-my-posh, fzf, fd, zoxide, eza, bat, tree, git) and the
      Ghostty cask
-  3. Symlinks ~/.config/{helix,zellij,yazi,mise,ghostty,oh-my-posh} -> <repo>/<name>
+  3. Symlinks ~/.config/{helix,zellij,yazi,mise,ghostty,oh-my-posh,zsh-helix-mode}
+     -> <repo>/<name>
   4. Runs `mise install` to fetch runtimes / LSPs / formatters
   5. Builds Helix nightly from source (~/src/helix) via cargo
   6. Adds a managed block to ~/.zshrc with: mise activate, ~/.cargo/bin on
      PATH, HELIX_RUNTIME, Nord Aurora FZF colors + key bindings, zoxide
-     init, oh-my-posh init, and the `hs` sessionizer alias. Replaces an
-     existing helix-files block if present; leaves other managed blocks
-     alone.
+     init, oh-my-posh init, the `hx()` wrapper that sets TMUX=zellij inside
+     zellij sessions (see README → "Helix transparency inside zellij"),
+     and the `hs` sessionizer alias. Replaces an existing helix-files
+     block if present; leaves other managed blocks alone.
 
 Usage:
   scripts/setup.sh              actually make changes
@@ -292,6 +294,37 @@ fi
 # default. This is the wait-for-multi-key timeout in centiseconds; 1 = 10ms
 # so Esc → ZHM normal mode feels instant instead of dragging for 400ms.
 KEYTIMEOUT=1
+
+# Dynamic OSC 0 terminal title — zellij surfaces this as the pane title.
+# precmd fires before each prompt: "zsh %1~" (zsh + last cwd component,
+# tilde-substituted, e.g. "zsh helix-files" or "zsh ~").
+# preexec fires before each command: the typed command line, so a long-
+# running `npm install` shows up as "npm install" until it finishes.
+# `print -P` enables prompt expansion (%1~). Helix doesn't fire zsh hooks,
+# so its yazi-opener-set "hx <filename>" survives until the editor exits;
+# the next prompt then redraws "zsh ...".
+__hf_precmd_title() { print -Pn "\e]0;zsh %1~\a" }
+__hf_preexec_title() { printf '\e]0;%s\a' "$1" }
+typeset -ga precmd_functions preexec_functions
+(( ${precmd_functions[(I)__hf_precmd_title]} )) || precmd_functions+=(__hf_precmd_title)
+(( ${preexec_functions[(I)__hf_preexec_title]} )) || preexec_functions+=(__hf_preexec_title)
+
+# helix's OSC 11 background-color carve-out only checks TMUX, not ZELLIJ
+# (helix-tui/src/backend/termina.rs:104-105). Without faking TMUX inside a
+# zellij session, helix queries the bg, zellij always answers black
+# (zellij-org/zellij#3590), and helix writes that black back via OSC 11 SET
+# — painting the pane opaque and defeating ghostty's transparency. Pairs
+# with clipboard-provider=pasteboard in helix/config.toml so the faked
+# TMUX doesn't reroute yank/paste through `tmux save-buffer`. yazi/yazi.toml
+# duplicates this for the yazi → hx launch path (bash opener doesn't read
+# ~/.zshrc).
+hx() {
+	if [[ -n ${ZELLIJ:-} ]]; then
+		TMUX=zellij command hx "$@"
+	else
+		command hx "$@"
+	fi
+}
 
 # Helix + zellij sessionizer
 alias hs="__REPO__/scripts/sessionizer.sh"

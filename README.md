@@ -26,8 +26,7 @@ helix-files/
 │   ├── keymap.toml             # vim-style navigation
 │   └── theme.toml              # Deep Nord Aurora theme
 ├── zellij/
-│   ├── config.kdl              # multiplexer config (theme, keybinds, layout)
-│   ├── themes/deep-nord-aurora.kdl
+│   ├── config.kdl              # multiplexer config (theme inlined, keybinds, layout)
 │   └── layouts/default.kdl     # auto-yazi on new-session start
 └── zsh-helix-mode/             # upstream plugin: Helix-style modal editing in zsh
 ```
@@ -49,6 +48,8 @@ helix-files/
    - Inits `oh-my-posh` with the Deep Nord Aurora theme (guarded via `POSH_PID`).
    - Sources `zsh-helix-mode` with `ZHM_CURSOR_*` overrides and clipboard wiring (guarded by function existence).
    - Sets `KEYTIMEOUT=1` for snappy modal Esc.
+   - Adds `precmd`/`preexec` hooks that emit OSC 0 so the zellij pane title shows `zsh <cwd>` at the prompt and switches to the running command's name while it executes (e.g. `npm install`, `git push`).
+   - Defines an `hx()` wrapper that sets `TMUX=zellij` when launched inside a zellij session — see [Helix transparency inside zellij](#helix-transparency-inside-zellij).
    - Aliases `hs` to the sessionizer; `zls`/`za`/`zks`/`zka` for zellij session control.
 
 Every step is idempotent.
@@ -104,11 +105,15 @@ Order: brew packages → mise tools → Helix nightly (rebuilt only if HEAD move
 | Rust              | `rust-analyzer`              | mise (aqua)           |
 | TypeScript / JS   | `typescript-language-server` | mise (npm backend)    |
 | Elixir            | `elixir-ls`                  | mise (asdf plugin)    |
-| _all (auto-reload)_ | `fs_watcher_lsp`           | mise (cargo backend)  |
+| TOML              | `taplo`                      | mise (cargo backend)  |
+| _per-language (auto-reload)_ | `fs_watcher_lsp`  | mise (cargo backend)  |
 | Java              | `jdtls`                      | Homebrew              |
 | Erlang            | `erlang_ls`                  | Homebrew              |
+| Markdown          | `marksman`                   | Homebrew              |
 
-`jdtls` and `erlang_ls` aren't in the mise registry, so they're brewed by `setup.sh`. Helix's `language-servers` key replaces (rather than extends) the default list, so each `[[language]]` entry in `helix/languages.toml` re-declares its primary LSP alongside [`fs_watcher_lsp`](https://codeberg.org/Zentropivity/fs_watcher_lsp), which auto-reloads buffers when files change on disk.
+`jdtls`, `erlang_ls`, and `marksman` aren't in the mise registry, so they're brewed by `setup.sh`. Helix's `language-servers` key **replaces** (rather than extends) the default list, so each `[[language]]` entry in `helix/languages.toml` re-declares its primary LSP alongside [`fs_watcher_lsp`](https://codeberg.org/Zentropivity/fs_watcher_lsp), which auto-reloads buffers when files change on disk.
+
+There's no "global" way to attach `fs_watcher_lsp` to every language — Helix's design treats `language-servers` as a hard override per language rather than a delta. The pragmatic workaround is to add the LSP explicitly to each `[[language]]` entry you actually use, plus a custom `text` entry for plain `.txt` / `.log` files (no built-in helix language for those).
 
 Verify: `hx --health rust` (repeat per language).
 
@@ -127,6 +132,28 @@ Custom keys defined in `helix/config.toml` (on top of Helix's defaults):
 Plus:
 - `auto-format = false` (manual `:format` only) so you don't fight a formatter you didn't invoke.
 - `insecure = true` skips Helix's "trust this workspace" prompt for every new project. Removes the seatbelt for `.helix/config.toml` payloads in untrusted repos — fine if you only open projects you authored.
+- `clipboard-provider = "pasteboard"` pins yank/paste to macOS pbcopy/pbpaste. See [Helix transparency inside zellij](#helix-transparency-inside-zellij) for why this isn't auto-detected.
+
+### Helix transparency inside zellij
+
+Helix renders transparently outside zellij but draws an opaque rectangle when launched inside a zellij pane. The cause is two interacting bugs:
+
+1. Helix queries the surrounding terminal for its background colour via OSC 11 at startup so it can restore it on exit. Zellij always answers black ([zellij-org/zellij#3590](https://github.com/zellij-org/zellij/issues/3590)).
+2. With `ui.background = {}` (the transparent helix theme idiom), Helix calls its `reset_background_color` path on theme load, which writes the cached "original" back via OSC 11 SET. Inside zellij that's now black — Helix has just told the surrounding terminal "your background is black," and ghostty's window opacity is gone for that pane.
+
+Helix already has a guard for this exact failure mode for tmux ([`helix-tui/src/backend/termina.rs:104-105`](https://github.com/helix-editor/helix/blob/master/helix-tui/src/backend/termina.rs)) — `dynamic_background_color` is disabled when the `TMUX` env var is set. There's no equivalent for zellij upstream, so the workaround is to fake `TMUX=zellij` whenever helix runs inside a zellij session:
+
+- The `hx()` shell function in the `.zshrc` managed block sets `TMUX=zellij` for direct shell launches.
+- The yazi opener (`yazi/yazi.toml`) does the same in its bash one-liner so the yazi → hx hand-off is covered too (the bash opener doesn't source `~/.zshrc`).
+- Helix's clipboard auto-detection prefers `tmux save-buffer`/`load-buffer` whenever `$TMUX` is set + tmux is on PATH — which would silently steal yank/paste from pbcopy. `clipboard-provider = "pasteboard"` in `helix/config.toml` pins the macOS pasteboard so the faked TMUX can't reroute the clipboard.
+
+Upstream fix (one line, would obsolete the workaround) — widen the env check to include zellij in `helix-tui/src/backend/termina.rs:105`:
+
+```rust
+capabilities.dynamic_background_color = ["TMUX", "ZELLIJ"]
+    .iter()
+    .all(|var| std::env::var_os(var).is_none());
+```
 
 ### yazi as file picker
 
@@ -166,12 +193,14 @@ The previous tmux setup was replaced with zellij to get **proper 4-edge active p
 | Key | Action |
 |---|---|
 | `Alt h` / `Alt j` / `Alt k` / `Alt l` | move pane focus (zellij default — kept) |
-| `Alt ,` / `Alt .` | previous / next tab |
+| `Alt [` / `Alt ]` | previous / next tab |
 | `Alt 1` … `Alt 9` | jump to tab N |
 | `Alt t` / `Alt w` | new tab / close tab |
 | `Alt f` | toggle pane fullscreen |
+| `Alt z` | toggle pane frames on/off (handy when copying with the mouse) |
 | `Alt =` / `Alt -` | resize active pane (zellij default — kept) |
 | `Ctrl q` | **detach** (overrides zellij's default Quit binding) |
+| `Alt q` | quit zellij (the destructive form, kept addressable) |
 
 **Mode entry (zellij default — kept):**
 
@@ -212,7 +241,7 @@ Where each tool's theme lives:
 
 - **Helix** — `helix/themes/nord-aurora.toml` (`theme = "nord-aurora"` in `config.toml`).
 - **Ghostty** — `ghostty/themes/nord-aurora` palette + `background-opacity = 0.92`, `background-blur = 20`. `shell-integration-features = no-cursor` so apps (zsh-helix-mode, helix) drive cursor shape.
-- **zellij** — `zellij/themes/deep-nord-aurora.kdl`.
+- **zellij** — inline `themes { deep-nord-aurora { … } }` block at the bottom of `zellij/config.kdl`. (Inline rather than `zellij/themes/*.kdl` because zellij 0.44.0 silently ignored external theme files — fixed in 0.44.1, but inlining is more robust against future regressions.)
 - **oh-my-posh** — `oh-my-posh/nord-aurora.omp.json`.
 - **Yazi** — `yazi/theme.toml`.
 - **fzf** — `FZF_DEFAULT_OPTS` exports in the `.zshrc` managed block.
