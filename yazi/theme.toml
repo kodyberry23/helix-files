@@ -123,7 +123,7 @@ rules = [
   { mime = "application/json", fg = "#8DBC6E" },                      # green
   { mime = "text/*",           fg = "#D8DEE9" },                      # snow0
   # Directories
-  { name = "*/", fg = "#74BCD9", bold = true },                       # frost1
+  { url = "*/", fg = "#74BCD9", bold = true },                       # frost1
   # Fallback
-  { name = "*",  fg = "#D8DEE9" },
+  { url = "*",  fg = "#D8DEE9" },
 ]

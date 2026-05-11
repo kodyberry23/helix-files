@@ -89,8 +89,6 @@ keybind = cmd+opt+right=unbind
 
 #Shaders
 custom-shader = shaders/cursor_warp.glsl
-# custom-shader = shaders/bettercrt.glsl
-# custom-shader = shaders/retro-terminal.glsl
 macos-icon = custom
 macos-custom-icon = ~/.config/ghostty/ghostty-black.icns
 
