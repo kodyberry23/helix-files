@@ -67,7 +67,7 @@ rules = [
   { mime = "application/x-rar",          use = ["extract", "reveal"] },
   # Directories — entering a dir uses the `enter` action via keymap.toml,
   # not `open`. This rule is the fallback when explicitly invoked.
-  { name = "*/", use = ["edit", "open", "reveal"] },
+  { url = "*/", use = ["edit", "open", "reveal"] },
   # Everything else (text, json, code, unknown MIME) → Helix first.
   { mime = "*", use = ["edit", "open", "reveal"] },
 ]

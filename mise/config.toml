@@ -1,13 +1,21 @@
 # Global mise config. Symlink to ~/.config/mise/config.toml.
 # Helix discovers these via PATH once `mise activate zsh` is sourced from .zshrc.
 
+[settings]
+# Keep mise's tool bin dirs at the FRONT of PATH even after later PATH
+# mutations (e.g. Homebrew's `eval "$(brew shellenv)"`). Without this,
+# /opt/homebrew/bin/erl shadows mise's erlang, and `mise install elixir`
+# crashes during its post-install `elixir --version` check because the
+# OTP-28 Elixir build links against the wrong erl.
+activate_aggressive = true
+
 [tools]
 # ─── Language runtimes ────────────────────────────────────────────────────
 node     = "lts"
 rust     = "stable"
 java     = "21"
-elixir   = "latest"
-erlang   = "latest"
+elixir   = "1.19.5-otp-28"
+erlang   = "28"
 
 # ─── Language servers (mise-installable) ──────────────────────────────────
 rust-analyzer                    = "latest"  # aqua: rust-lang/rust-analyzer
