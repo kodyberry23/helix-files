@@ -5,10 +5,22 @@
 # (HOMEBREW_NO_AUTO_UPDATE=1).
 #
 # What it updates:
-#   1. Brew packages we installed: brew upgrade (with auto-update disabled)
-#   2. mise-managed tools: mise upgrade (runtimes, LSPs, formatters)
-#   3. Helix nightly: git pull + cargo install --path helix-term --locked
-#   4. zsh-helix-mode: git pull --ff-only
+#   1. helix-files repo itself: git pull --ff-only (so the steps below
+#      and the zshrc managed-block content are current)
+#   2. Brew packages we installed: brew upgrade (with auto-update disabled)
+#   3. mise-managed tools: mise upgrade (runtimes, LSPs, formatters)
+#   4. Helix nightly: git pull + cargo install --path helix-term --locked
+#   5. zsh-helix-mode: git pull --ff-only
+#   6. ~/.zshrc managed block: re-stamp via `setup.sh --only-zshrc` so
+#      drift between setup.sh's zshrc_block heredoc and the deployed
+#      ~/.zshrc gets corrected on every update
+#
+# Caveat: step 1 pulls a new copy of common.sh / setup.sh / update.sh,
+# but this script keeps running with the OLD versions it already sourced.
+# If a pull changes BREW_FORMULAS, mise tools, or update.sh's own logic,
+# re-run scripts/update.sh once more to apply the new behavior. Step 6
+# shells out to a fresh `bash setup.sh`, so it always sees the latest
+# zshrc_block content.
 #
 # Usage:
 #   scripts/update.sh             # actually update
@@ -31,10 +43,12 @@ Update dependencies installed by setup.sh. Skips `brew update` on Homebrew
 itself — pass HOMEBREW_NO_AUTO_UPDATE=1 to `brew upgrade`.
 
 Updates:
-  1. Brew packages we manage (brew upgrade, no auto-update)
-  2. mise-managed tools (runtimes, LSPs, formatters)
-  3. Helix nightly (git pull + cargo install)
-  4. zsh-helix-mode (git pull)
+  1. helix-files repo (git pull --ff-only)
+  2. Brew packages we manage (brew upgrade, no auto-update)
+  3. mise-managed tools (runtimes, LSPs, formatters)
+  4. Helix nightly (git pull + cargo install)
+  5. zsh-helix-mode (git pull)
+  6. ~/.zshrc managed block (setup.sh --only-zshrc)
 
 Usage:
   scripts/update.sh             actually update
@@ -48,7 +62,27 @@ parse_dry_run_args "$@"
 
 dry_run_banner "$DRY_RUN"
 
-# ─── 1. Brew packages ─────────────────────────────────────────────────────
+# ─── 1. helix-files repo itself ───────────────────────────────────────────
+# Pull this repo first so subsequent steps (and the --only-zshrc shellout)
+# see the latest setup.sh/zshrc_block content. The currently-executing
+# script keeps its OLD common.sh sourced — see the caveat in the header.
+update_helix_files_repo() {
+	info "helix-files repo"
+	if [[ ! -d "$REPO_ROOT/.git" ]]; then
+		warn "$REPO_ROOT is not a git checkout; skipping"
+		return
+	fi
+	if $DRY_RUN; then
+		would "git -C $REPO_ROOT pull --ff-only"
+		return
+	fi
+	# --ff-only fails loudly if there are local commits or a dirty tree.
+	# Better to surface the conflict than to silently merge or stash.
+	git -C "$REPO_ROOT" pull --ff-only
+	ok "up to date"
+}
+
+# ─── 2. Brew packages ─────────────────────────────────────────────────────
 # Package lists live in lib/common.sh (BREW_FORMULAS, BREW_CASKS) so setup.sh
 # and update.sh stay in lockstep without a "keep in sync" comment.
 update_brew_packages() {
@@ -100,7 +134,7 @@ update_brew_packages() {
 	ok "brew packages up to date"
 }
 
-# ─── 2. Helix nightly ─────────────────────────────────────────────────────
+# ─── 3. Helix nightly ─────────────────────────────────────────────────────
 update_helix() {
 	info "Helix nightly"
 	if [[ ! -d "$HELIX_SRC/.git" ]]; then
@@ -140,7 +174,7 @@ update_helix() {
 	ok "rebuilt"
 }
 
-# ─── 3. mise-managed tools ────────────────────────────────────────────────
+# ─── 4. mise-managed tools ────────────────────────────────────────────────
 update_mise_tools() {
 	info "mise tools"
 	if ! has_cmd mise; then
@@ -158,7 +192,7 @@ update_mise_tools() {
 	ok "mise tools upgraded"
 }
 
-# ─── 4. zsh-helix-mode ────────────────────────────────────────────────────
+# ─── 5. zsh-helix-mode ────────────────────────────────────────────────────
 update_zsh_helix_mode() {
 	info "zsh-helix-mode"
 	if [[ ! -d "$ZHM_DIR/.git" ]]; then
@@ -173,11 +207,25 @@ update_zsh_helix_mode() {
 	ok "up to date"
 }
 
+# ─── 6. ~/.zshrc managed block ────────────────────────────────────────────
+# Shells out to setup.sh in a fresh bash process so it picks up the
+# zshrc_block heredoc from the just-pulled tree (not whatever update.sh
+# happened to source at startup).
+refresh_zshrc_managed_block() {
+	if $DRY_RUN; then
+		bash "$SCRIPT_DIR/setup.sh" --only-zshrc --dry-run
+	else
+		bash "$SCRIPT_DIR/setup.sh" --only-zshrc
+	fi
+}
+
 main() {
+	update_helix_files_repo
 	update_brew_packages
 	update_mise_tools
 	update_helix
 	update_zsh_helix_mode
+	refresh_zshrc_managed_block
 
 	echo
 	if $DRY_RUN; then

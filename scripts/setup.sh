@@ -7,6 +7,8 @@
 #   scripts/setup.sh              # actually make changes
 #   scripts/setup.sh --dry-run    # preview without touching anything
 #   scripts/setup.sh -n           # same as --dry-run
+#   scripts/setup.sh --only-zshrc # re-stamp the ~/.zshrc managed block only
+#                                 # (called by update.sh to prevent drift)
 #   scripts/setup.sh -h | --help  # usage
 
 set -euo pipefail
@@ -48,11 +50,23 @@ Usage:
   scripts/setup.sh              actually make changes
   scripts/setup.sh --dry-run    preview without touching anything
   scripts/setup.sh -n           same as --dry-run
+  scripts/setup.sh --only-zshrc re-stamp the ~/.zshrc managed block only
+                                (called by update.sh to prevent drift)
   scripts/setup.sh -h | --help  this message
 USAGE
 }
 
-parse_dry_run_args "$@"
+# Inline parser (common.sh's parse_dry_run_args doesn't know --only-zshrc).
+DRY_RUN=false
+ONLY_ZSHRC=false
+for arg in "$@"; do
+	case "$arg" in
+		--dry-run|-n)  DRY_RUN=true ;;
+		--only-zshrc)  ONLY_ZSHRC=true ;;
+		-h|--help)     usage; exit 0 ;;
+		*)             err "unknown argument: $arg"; exit 2 ;;
+	esac
+done
 
 if [[ ! -d "$REPO_ROOT" ]]; then
 	err "helix-files not found at $REPO_ROOT"
@@ -491,6 +505,14 @@ install_helix_nightly() {
 }
 
 main() {
+	# --only-zshrc: re-stamp the managed block and exit. Invoked by
+	# update.sh so a `git pull` of this repo also refreshes the live
+	# ~/.zshrc, preventing the block from drifting behind setup.sh edits.
+	if $ONLY_ZSHRC; then
+		setup_managed_block "$ZSHRC" zshrc_block
+		return
+	fi
+
 	install_homebrew
 	install_brew_packages
 
