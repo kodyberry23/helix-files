@@ -7,7 +7,14 @@ bufferline = "always"
 color-modes = true
 cursorline = true
 auto-format = false
-auto-save = true
+# `focus-lost` alone (the legacy `auto-save = true` form) only saves when
+# Helix loses focus — useless while you're actively editing. `after-delay`
+# is what clears the `[+]` dirty flag that fs_watcher_lsp leaves on the
+# buffer after an external write (e.g., a formatter ran outside Helix):
+# the LSP applies an edit to match disk, the buffer matches disk in
+# content but is marked dirty, and 1s of idle later auto-save writes it
+# back and clears the flag without needing `:reload`.
+auto-save = { focus-lost = true, after-delay = { enable = true, timeout = 1000 } }
 completion-trigger-len = 1
 true-color = true
 # Pin to pbcopy/pbpaste. Auto-detect would route through `tmux save-buffer`

@@ -32,6 +32,23 @@ language-servers = ["rust-analyzer", "fs_watcher_lsp"]
 command = "clippy"
 
 # ─── TypeScript / JavaScript ──────────────────────────────────────────────
+# Inferred-type inlay hints (the `: SomeType` annotations the LSP injects
+# next to `const x = ...`, return values, class fields, and parameters) are
+# disabled here. Parameter NAMES and enum member values stay on — those
+# aren't inferred types and are usually still useful. Re-enable any of
+# these by flipping the flag if you want a specific hint back.
+[language-server.typescript-language-server.config.typescript.inlayHints]
+parameterTypes = { enabled = false }
+variableTypes = { enabled = false }
+propertyDeclarationTypes = { enabled = false }
+functionLikeReturnTypes = { enabled = false }
+
+[language-server.typescript-language-server.config.javascript.inlayHints]
+parameterTypes = { enabled = false }
+variableTypes = { enabled = false }
+propertyDeclarationTypes = { enabled = false }
+functionLikeReturnTypes = { enabled = false }
+
 [[language]]
 name = "typescript"
 auto-format = false
