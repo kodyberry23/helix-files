@@ -29,12 +29,13 @@ image_quality = 75
 # duplicated here for the yazi → hx launch path.
 #
 # The leading printf sets the OSC 0 terminal title (which zellij surfaces
-# as the pane title) to "hx <basename>". Yazi's teardown clears the title
-# to an empty string when it suspends, and helix never sets one of its
-# own — without this, the zellij pane frame loses its title for the whole
-# helix session and only restores when yazi resumes.
+# as the pane title) to "hx <project>" — the basename of the git toplevel
+# (or the file's parent dir when not in a repo). Yazi's teardown clears
+# the title to an empty string when it suspends, and helix never sets one
+# of its own — without this, the zellij pane frame loses its title for
+# the whole helix session and only restores when yazi resumes.
 edit = [
-  { run = 'printf "\033]0;hx %s\007" "${1##*/}"; if [ -n "$ZELLIJ" ]; then TMUX=zellij hx "$@"; else hx "$@"; fi', desc = "Helix", block = true, for = "unix" },
+  { run = 'd=$(dirname "$1"); p=$(git -C "$d" rev-parse --show-toplevel 2>/dev/null) || p=$d; printf "\033]0;hx %s\007" "${p##*/}"; if [ -n "$ZELLIJ" ]; then TMUX=zellij hx "$@"; else hx "$@"; fi', desc = "Helix", block = true, for = "unix" },
 ]
 open = [
   { run = 'open %s', desc = "Open", for = "macos" },
@@ -78,4 +79,9 @@ macro_workers    = 10
 bizarre_retry    = 5
 image_alloc      = 536870912
 image_bound      = [0, 0]
-suppress_preload = false
+# Don't preload previews on startup — yazi otherwise spawns preview workers
+# and renders the auto-selected file's preview before drawing the UI, which
+# is the main cause of the perceived 1-2s "before yazi shows" latency when
+# launching from helix's `space e`. Previews still render on demand when
+# you hover a file; the first preview after launch is just slightly slower.
+suppress_preload = true

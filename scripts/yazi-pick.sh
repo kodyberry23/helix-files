@@ -33,10 +33,13 @@ case "$MODE" in
 		# Wipe stale state from a previous invocation in this helix.
 		rm -f "$RESULT" "$MARKER"
 
-		# Clear the main screen BEFORE yazi takes alt-screen — yazi's exit
-		# restores main-screen pixels, which would otherwise still contain
-		# helix's which-key popup until helix's :redraw (async) completes.
-		printf '\033[2J\033[H' > /dev/tty
+		# Note: we intentionally do NOT pre-clear the terminal here. The
+		# previous version ran `printf '\033[2J\033[H' > /dev/tty` to
+		# pre-empt a brief which-key popup re-flash after yazi exits, but
+		# the clear adds a visible blank frame between helix and yazi's
+		# alt-screen — making `space e` feel noticeably laggy. Yazi's own
+		# `\033[?1049h` switch and the `:redraw` later in the helix chain
+		# handle the cleanup; any residual popup flash is sub-perceptual.
 
 		# Where yazi opens to. Real path → its parent; otherwise cwd.
 		local_start="$CURRENT"
@@ -45,6 +48,17 @@ case "$MODE" in
 		# Yazi's Ctrl-V keybind reads YAZI_PICK_MARKER and writes the
 		# vsplit marker file. Export so yazi's child shell sees it.
 		export YAZI_PICK_MARKER="$MARKER"
+
+		# Explicit terminal-brand hints so yazi doesn't probe the tty
+		# under zellij — under zellij `/dev/tty` opens fail (see yazi's
+		# ~/.local/state/yazi/yazi.log: "Failed to open /dev/tty, falling
+		# back to stdin/stdout") and yazi falls through to chafa /
+		# ueberzug detection. Setting these env vars short-circuits brand
+		# detection in yazi-emulator/src/brand.rs to "ghostty" directly.
+		# (No-op if already set; helix usually inherits them from zsh.)
+		export TERM_PROGRAM="${TERM_PROGRAM:-ghostty}"
+		export GHOSTTY_RESOURCES_DIR="${GHOSTTY_RESOURCES_DIR:-/Applications/Ghostty.app/Contents/Resources/ghostty}"
+
 		yazi "$local_start" --chooser-file="$RESULT" </dev/tty >/dev/tty 2>/dev/null
 
 		# If Ctrl-V was pressed, marker has "VSPLIT:<path>". Promote it
@@ -52,6 +66,22 @@ case "$MODE" in
 		# so the read modes below have a single source of truth.
 		[[ -s "$MARKER" ]] && cat "$MARKER" > "$RESULT"
 		rm -f "$MARKER"
+
+		# Yazi cleared the OSC 0 title on suspend (same behavior the
+		# yazi.toml `edit` opener calls out and works around with its own
+		# printf). Restore it before exit so the zellij pane frame isn't
+		# blank for the rest of the helix session. Title is the project
+		# root basename (git toplevel; PWD basename if not in a repo) —
+		# stable across buffer switches inside helix.
+		ref="$CURRENT"
+		if [[ -s "$RESULT" ]]; then
+			line=$(<"$RESULT")
+			[[ "$line" == VSPLIT:* ]] && line="${line#VSPLIT:}"
+			[[ -n "$line" ]] && ref="$line"
+		fi
+		ref_dir=$(dirname "$ref" 2>/dev/null) || ref_dir="$PWD"
+		proj=$(git -C "$ref_dir" rev-parse --show-toplevel 2>/dev/null) || proj="$ref_dir"
+		printf '\033]0;hx %s\007' "${proj##*/}" > /dev/tty
 		;;
 
 	open)

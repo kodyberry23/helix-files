@@ -337,7 +337,13 @@ typeset -ga precmd_functions preexec_functions
 # content visible above the next prompt. clear wipes the visible viewport
 # so you land on a clean line. Same pattern works for any TUI (yazi, less,
 # htop) — add `; clear` to the call site if you hit the same artifact.
+# Title: overrides preexec's "hx file.txt" with "hx <project>" so the
+# zellij pane frame is stable across buffer switches inside helix.
 hx() {
+	local __proj
+	__proj=$(git rev-parse --show-toplevel 2>/dev/null) || __proj=$PWD
+	printf '\e]0;hx %s\a' "${__proj##*/}"
+
 	if [[ -n ${ZELLIJ:-} ]]; then
 		TMUX=zellij command hx "$@"
 	else
