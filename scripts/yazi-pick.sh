@@ -49,6 +49,15 @@ case "$MODE" in
 		# vsplit marker file. Export so yazi's child shell sees it.
 		export YAZI_PICK_MARKER="$MARKER"
 
+		# Lock yazi navigation to the project root via the stay-root
+		# plugin (yazi/plugins/stay-root.yazi). Probe from the buffer's
+		# parent dir first, falling back to PWD (helix's cwd — typically
+		# the sessionizer's chosen project).
+		ref_dir="$CURRENT"
+		[[ -d "$ref_dir" ]] || ref_dir=$(dirname "$ref_dir")
+		root=$(git -C "$ref_dir" rev-parse --show-toplevel 2>/dev/null) || root="$PWD"
+		export YAZI_LOCK_ROOT="$root"
+
 		# Explicit terminal-brand hints so yazi doesn't probe the tty
 		# under zellij — under zellij `/dev/tty` opens fail (see yazi's
 		# ~/.local/state/yazi/yazi.log: "Failed to open /dev/tty, falling
@@ -69,19 +78,10 @@ case "$MODE" in
 
 		# Yazi cleared the OSC 0 title on suspend (same behavior the
 		# yazi.toml `edit` opener calls out and works around with its own
-		# printf). Restore it before exit so the zellij pane frame isn't
-		# blank for the rest of the helix session. Title is the project
-		# root basename (git toplevel; PWD basename if not in a repo) —
-		# stable across buffer switches inside helix.
-		ref="$CURRENT"
-		if [[ -s "$RESULT" ]]; then
-			line=$(<"$RESULT")
-			[[ "$line" == VSPLIT:* ]] && line="${line#VSPLIT:}"
-			[[ -n "$line" ]] && ref="$line"
-		fi
-		ref_dir=$(dirname "$ref" 2>/dev/null) || ref_dir="$PWD"
-		proj=$(git -C "$ref_dir" rev-parse --show-toplevel 2>/dev/null) || proj="$ref_dir"
-		printf '\033]0;hx %s\007' "${proj##*/}" > /dev/tty
+		# printf). Restore it so the zellij pane frame isn't blank for
+		# the rest of the helix session. Title is the lock-root basename
+		# — any picked file is guaranteed to live inside $root.
+		printf '\033]0;hx %s\007' "${root##*/}" > /dev/tty
 		;;
 
 	open)

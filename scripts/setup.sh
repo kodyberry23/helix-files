@@ -323,6 +323,51 @@ typeset -ga precmd_functions preexec_functions
 (( ${precmd_functions[(I)__hf_precmd_title]} )) || precmd_functions+=(__hf_precmd_title)
 (( ${preexec_functions[(I)__hf_preexec_title]} )) || preexec_functions+=(__hf_preexec_title)
 
+# Auto-clear the pane after exiting a full-screen TUI in zellij. Zellij's
+# alt-screen handoff (see zellij-org/zellij#4293, #4006, #4893) doesn't
+# restore the pre-TUI screen on \e[?1049l, so the TUI's last frame stays
+# painted in the pane. We clear conditionally (only after a known TUI) so
+# the output of normal commands like `ls` and `git diff` isn't wiped too.
+# Extend __HF_TUI_NAMES to cover more programs.
+typeset -ga __HF_TUI_NAMES __HF_TUI_MODIFIERS
+__HF_TUI_NAMES=(hx helix yazi lazygit lazydocker htop btop ncdu k9s ranger
+                broot nnn less more man nvim vim view neovim tig glow bat)
+__HF_TUI_MODIFIERS=(sudo time command builtin noglob nocorrect exec)
+typeset -gi __HF_LAST_WAS_TUI=0
+
+# Implemented with [[ … ]] guards rather than `case`: this body lives
+# inside a heredoc in a `$(...)` substitution, and bash's parser still
+# scans `;;` even with single-quoted heredocs, so a case statement
+# breaks setup.sh's own parse. ${(z)...} is zsh's shell tokenizer —
+# same parse as your typed command line.
+__hf_preexec_tui_track() {
+	[[ -n ${ZELLIJ:-} ]] || return
+	local -a parts
+	parts=(${(z)1})
+	local word
+	for word in $parts; do
+		[[ $word == *=* ]] && continue
+		(( ${__HF_TUI_MODIFIERS[(Ie)$word]} )) && continue
+		# `\hx` syntax in zsh bypasses alias/function lookup — strip it.
+		word=${word#\\}
+		(( ${__HF_TUI_NAMES[(Ie)$word]} )) && __HF_LAST_WAS_TUI=1
+		return
+	done
+}
+
+# `clear` alone leaves the alt-screen frame painted in zellij's pane
+# scrollback; the explicit \e[3J wipes that too so we land on a fresh
+# pane instead of one that just scrolled the TUI frame off-viewport.
+__hf_precmd_tui_clear() {
+	(( __HF_LAST_WAS_TUI )) || return
+	__HF_LAST_WAS_TUI=0
+	clear
+	printf '\e[3J'
+}
+
+(( ${preexec_functions[(I)__hf_preexec_tui_track]} )) || preexec_functions+=(__hf_preexec_tui_track)
+(( ${precmd_functions[(I)__hf_precmd_tui_clear]} )) || precmd_functions+=(__hf_precmd_tui_clear)
+
 # helix's OSC 11 background-color carve-out only checks TMUX, not ZELLIJ
 # (helix-tui/src/backend/termina.rs:104-105). Without faking TMUX inside a
 # zellij session, helix queries the bg, zellij always answers black
@@ -332,11 +377,8 @@ typeset -ga precmd_functions preexec_functions
 # TMUX doesn't reroute yank/paste through `tmux save-buffer`. yazi/yazi.toml
 # duplicates this for the yazi → hx launch path (bash opener doesn't read
 # ~/.zshrc).
-# Trailing `clear` works around zellij/4893 — fragments from helix's
-# alt-screen buffer leak into the pane scrollback on exit, leaving file
-# content visible above the next prompt. clear wipes the visible viewport
-# so you land on a clean line. Same pattern works for any TUI (yazi, less,
-# htop) — add `; clear` to the call site if you hit the same artifact.
+# Post-exit clear is now handled centrally by the __hf_precmd_tui_clear
+# hook above — works for every TUI in __HF_TUI_NAMES, not just helix.
 # Title: overrides preexec's "hx file.txt" with "hx <project>" so the
 # zellij pane frame is stable across buffer switches inside helix.
 hx() {
@@ -349,7 +391,6 @@ hx() {
 	else
 		command hx "$@"
 	fi
-	clear
 }
 
 # Helix + zellij sessionizer

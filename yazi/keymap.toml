@@ -2,8 +2,13 @@
 
 [mgr]
 keymap = [
-  # Navigation
-  { on = "h", run = "leave",  desc = "Go back to parent directory" },
+  # Navigation. `h` is routed through the stay-root plugin so it can't
+  # escape the project root when YAZI_LOCK_ROOT is exported (sessionizer
+  # + helix `space e` paths). When the env var is unset (plain `yazi`
+  # from a shell), the plugin falls through to the built-in `leave`.
+  # `H` jumps back to the lock root from anywhere inside it.
+  { on = "h", run = "plugin stay-root up",   desc = "Parent dir (blocked at project root)" },
+  { on = "H", run = "plugin stay-root root", desc = "Jump to project root" },
   { on = "j", run = "arrow 1",  desc = "Move down" },
   { on = "k", run = "arrow -1", desc = "Move up" },
   { on = "l", run = "enter",  desc = "Enter directory" },

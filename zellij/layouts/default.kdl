@@ -2,12 +2,19 @@
 // picker; on `q` in yazi the chained `exec $SHELL -i` replaces the
 // process with an interactive shell so the pane stays usable.
 //
+// YAZI_LOCK_ROOT pins yazi navigation to the project root via the
+// stay-root plugin (yazi/plugins/stay-root.yazi). Resolved via
+// `git rev-parse --show-toplevel` with a PWD fallback, since the
+// sessionizer always cd's into the chosen project dir before
+// exec'ing zellij. The export sticks for the lifetime of the bash
+// process so the post-yazi shell inherits it too.
+//
 // No tab-bar / status-bar plugins — the chrome eats vertical space and
 // the mode/session info isn't worth the rows. Keybindings give the same
 // signals (mode visible via cursor shape; sessions via `zls`/`za`).
 layout {
     pane command="bash" {
-        args "-c" "yazi ; exec ${SHELL:-zsh} -i"
+        args "-c" "export YAZI_LOCK_ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" ; yazi ; exec ${SHELL:-zsh} -i"
         close_on_exit true
     }
 }
