@@ -1,4 +1,4 @@
-# Nord Aurora — Nord palette with Aurora accents emphasized for syntax,
+# Nord Aurora - Nord palette with Aurora accents emphasized for syntax,
 # diagnostics, and statusline mode indicators.
 # Palette ref: https://www.nordtheme.com/docs/colors-and-palettes
 
@@ -56,16 +56,16 @@
 "diff.delta" = "yellow"
 
 # ─── UI ───────────────────────────────────────────────────────────────────
-# `ui.background = {}` is an EXPLICIT empty style — not the same as omitting
+# `ui.background = {}` is an EXPLICIT empty style - not the same as omitting
 # the key. Omitting it makes helix fall back to its built-in default theme's
 # opaque background, which paints over ghostty's window transparency. The
 # empty-table form tells helix "no fg, no bg, no modifiers" so cells render
 # with terminal-default-bg (\e[49m) and ghostty's opacity shows through.
-# (See helix-editor/helix#10223.) Only elements that need contrast — mode
-# badges, cursors, selections, popups, the active statusline — declare a bg.
+# (See helix-editor/helix#10223.) Only elements that need contrast - mode
+# badges, cursors, selections, popups, the active statusline - declare a bg.
 "ui.background"           = {}
 "ui.background.separator" = "polar1"
-# Gutter (line-number / sign column) needs its own explicit clear — helix
+# Gutter (line-number / sign column) needs its own explicit clear - helix
 # paints it as a separate strip whose bg falls back to the default theme's
 # opaque gutter, not to ui.background.
 "ui.gutter"               = {}
@@ -83,8 +83,8 @@
 "ui.selection"           = { bg = "polar2" }
 "ui.selection.primary"   = { bg = "polar3" }
 
-# Statusline — Aurora as mode indicator. The bar itself uses #13171F — one
-# notch DARKER than the editor surface — so it reads as a recessed strip.
+# Statusline - Aurora as mode indicator. The bar itself uses #13171F - one
+# notch DARKER than the editor surface - so it reads as a recessed strip.
 # Inlined as hex because helix's palette parser rejects names with
 # underscores (logs: "Malformed ANSI: polar_dim").
 "ui.statusline"          = { fg = "snow0", bg = "#13171F" }
@@ -113,7 +113,7 @@
 "ui.virtual.wrap"        = "polar3"
 "ui.virtual.jump-label"  = { fg = "orange", modifiers = ["bold"] }
 
-# ─── Diagnostics — Aurora-driven ──────────────────────────────────────────
+# ─── Diagnostics - Aurora-driven ──────────────────────────────────────────
 "diagnostic.error"   = { underline = { color = "red",    style = "curl" } }
 "diagnostic.warning" = { underline = { color = "yellow", style = "curl" } }
 "diagnostic.info"    = { underline = { color = "frost0", style = "curl" } }
@@ -128,19 +128,19 @@
 # nudged toward higher saturation. Helix's palette parser rejects names
 # with underscores; #13171F (statusline shade) is inlined where used.
 [palette]
-polar0 = "#1A1F28"  # deep ink — base background
+polar0 = "#1A1F28"  # deep ink - base background
 polar1 = "#232934"  # lighter background
 polar2 = "#2C333E"  # selection
 polar3 = "#4F5870"  # comments / inactive
-snow0  = "#D8DEE9"  # nord4  — base foreground (kept for legibility)
+snow0  = "#D8DEE9"  # nord4  - base foreground (kept for legibility)
 snow1  = "#E5E9F0"  # nord5
-snow2  = "#ECEFF4"  # nord6  — emphasized text
+snow2  = "#ECEFF4"  # nord6  - emphasized text
 frost0 = "#6FBAB7"  # rich teal
 frost1 = "#74BCD9"  # primary cyan (cursor)
 frost2 = "#5F8FBF"  # bold blue
 frost3 = "#426F9E"  # deep blue
-red    = "#D04E5C"  # rich crimson — error / diff-minus
-orange = "#D97757"  # terracotta — cursor accent / constants
-yellow = "#DDB867"  # warm amber — types / warnings
-green  = "#8DBC6E"  # deep grass — strings / diff-plus
-purple = "#B97AB6"  # rich plum — keywords / numerics
+red    = "#D04E5C"  # rich crimson - error / diff-minus
+orange = "#D97757"  # terracotta - cursor accent / constants
+yellow = "#DDB867"  # warm amber - types / warnings
+green  = "#8DBC6E"  # deep grass - strings / diff-plus
+purple = "#B97AB6"  # rich plum - keywords / numerics

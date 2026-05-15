@@ -1,6 +1,6 @@
 # helix-files
 
-A Helix-centric dotfiles bundle for macOS — editor, terminal, multiplexer, file manager, prompt, mise tool config, project sessionizer, and a Helix-mode shell binding for zsh — all coordinated under a **Deep Nord Aurora** look. Built and tested on Ghostty + zellij + zsh.
+A Helix-centric dotfiles bundle for macOS - editor, terminal, multiplexer, sidebar file tree, prompt, mise tool config, project sessionizer, and a Helix-mode shell binding for zsh - all coordinated under a **Deep Nord Aurora** look. Built and tested on Ghostty + zellij + zsh.
 
 ## Layout
 
@@ -9,9 +9,11 @@ helix-files/
 ├── ghostty/                    # Ghostty terminal: config, themes, shaders, icon
 │   └── themes/nord-aurora      # Deep Nord Aurora palette (cursor + transparency in config)
 ├── helix/
-│   ├── config.toml             # editor settings, keymaps, statusline, yazi pickers
+│   ├── config.toml             # editor settings, keymaps, statusline, A-r reveal
 │   ├── languages.toml          # per-language LSP + formatter overrides
 │   └── themes/nord-aurora.toml # custom Deep Nord Aurora theme
+├── broot/
+│   └── conf.hjson              # sidebar verbs: Enter → :open, Ctrl-V → :vsplit
 ├── mise/
 │   └── config.toml             # global mise tools: runtimes, LSPs, formatters
 ├── oh-my-posh/                 # prompt themes; nord-aurora.omp.json is the default
@@ -19,15 +21,12 @@ helix-files/
 │   ├── setup.sh                # bootstrap: install tools, symlink, manage .zshrc block
 │   ├── update.sh               # update brew, mise, Helix nightly, zsh-helix-mode
 │   ├── sessionizer.sh          # zellij project session picker (alias: `hs`)
-│   ├── yazi-pick.sh            # yazi-as-helix-picker (used by space-e / C-v)
+│   ├── dispatch-to-editor.sh   # broot → editor pane (route :open / :vsplit)
+│   ├── dispatch-to-sidebar.sh  # helix A-r → broot :focus <buffer>
 │   └── lib/common.sh           # shared shell helpers + brew lists
-├── yazi/
-│   ├── yazi.toml               # mgr layout, opener rules
-│   ├── keymap.toml             # vim-style navigation
-│   └── theme.toml              # Deep Nord Aurora theme
 ├── zellij/
 │   ├── config.kdl              # multiplexer config (theme inlined, keybinds, layout)
-│   └── layouts/default.kdl     # auto-yazi on new-session start
+│   └── layouts/default.kdl     # 2-pane sidebar (broot) + editor (helix)
 └── zsh-helix-mode/             # upstream plugin: Helix-style modal editing in zsh
 ```
 
@@ -36,8 +35,8 @@ helix-files/
 `scripts/setup.sh` is the single entry point. It:
 
 1. Installs Homebrew if missing.
-2. Installs the brew formulas (`zellij yazi mise jdtls erlang_ls oh-my-posh fzf fd zoxide eza bat tree git`) and the Ghostty cask.
-3. Symlinks `~/.config/{helix,zellij,yazi,mise,ghostty,oh-my-posh,zsh-helix-mode}` into the matching repo dirs.
+2. Installs the brew formulas (`zellij broot mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq`) and the Ghostty cask.
+3. Symlinks `~/.config/{helix,zellij,broot,mise,ghostty,oh-my-posh,zsh-helix-mode}` into the matching repo dirs.
 4. Runs `mise install` (auto-trusting `mise/config.toml`) to fetch runtimes, LSPs, and formatters.
 5. Builds **Helix nightly from source** at `~/src/helix` via `cargo install --path helix-term --locked`.
 6. Manages a single block in `~/.zshrc` (between `# >>> helix-files managed block >>>` markers) that:
@@ -49,7 +48,7 @@ helix-files/
    - Sources `zsh-helix-mode` with `ZHM_CURSOR_*` overrides and clipboard wiring (guarded by function existence).
    - Sets `KEYTIMEOUT=1` for snappy modal Esc.
    - Adds `precmd`/`preexec` hooks that emit OSC 0 so the zellij pane title shows `zsh <cwd>` at the prompt and switches to the running command's name while it executes (e.g. `npm install`, `git push`).
-   - Defines an `hx()` wrapper that sets `TMUX=zellij` when launched inside a zellij session — see [Helix transparency inside zellij](#helix-transparency-inside-zellij).
+   - Defines an `hx()` wrapper that stamps a stable `hx <project>` pane title before launch.
    - Aliases `hs` to the sessionizer; `zls`/`za`/`zks`/`zka` for zellij session control.
 
 Every step is idempotent.
@@ -66,7 +65,7 @@ If you'd rather skip the script and symlink manually:
 ```sh
 ln -s "$PWD/helix"          ~/.config/helix
 ln -s "$PWD/zellij"         ~/.config/zellij
-ln -s "$PWD/yazi"           ~/.config/yazi
+ln -s "$PWD/broot"          ~/.config/broot
 ln -s "$PWD/mise"           ~/.config/mise
 ln -s "$PWD/ghostty"        ~/.config/ghostty
 ln -s "$PWD/oh-my-posh"     ~/.config/oh-my-posh
@@ -75,7 +74,7 @@ ln -s "$PWD/zsh-helix-mode" ~/.config/zsh-helix-mode
 
 ### Helix nightly
 
-Helix is intentionally _not_ a brew dependency — `setup.sh` follows the official ["Building from source"](https://docs.helix-editor.com/building-from-source.html) instructions:
+Helix is intentionally _not_ a brew dependency - `setup.sh` follows the official ["Building from source"](https://docs.helix-editor.com/building-from-source.html) instructions:
 
 ```sh
 git clone https://github.com/helix-editor/helix ~/src/helix
@@ -84,6 +83,26 @@ export HELIX_RUNTIME=~/src/helix/runtime    # added to .zshrc managed block
 ```
 
 `hx` lands in `~/.cargo/bin/`; `HELIX_RUNTIME` points at the matching `runtime/` for grammars and themes. Cargo comes from the rust toolchain that mise installs.
+
+### Local Helix patches
+
+Stock upstream Helix lacks two features this repo uses:
+
+- **[PR #13896](https://github.com/helix-editor/helix/pull/13896)** - Unix-socket command listener. The broot file picker dispatches `:open <path>` over this socket via `scripts/helix-send.sh` so picking a file routes into the existing helix instead of spawning a fresh one.
+- **[PR #13963](https://github.com/helix-editor/helix/pull/13963)** - auto-reload on external file changes. The `[editor.auto-reload]` block in `helix/config.toml` configures it. A local follow-up commit on top makes periodic reloads silent (statusline message instead of a modal prompt).
+
+To apply both on a `local-patches` branch:
+
+```sh
+cd ~/src/helix
+git checkout -b local-patches
+git fetch origin refs/pull/13896/head:pr-13896 && git cherry-pick pr-13896
+git fetch origin refs/pull/13963/head:pr-13963 && git cherry-pick <pr-base>..pr-13963
+# Apply the silent-reload tweak manually if you want it; see auto_reload.rs.
+cargo install --path helix-term --locked --force
+```
+
+`update.sh` detects the `local-patches` branch and skips fast-forward updates that would conflict; rebase manually onto fresh `origin/master` when you want upstream changes.
 
 ## Updating
 
@@ -106,14 +125,13 @@ Order: brew packages → mise tools → Helix nightly (rebuilt only if HEAD move
 | TypeScript / JS   | `typescript-language-server` | mise (npm backend)    |
 | Elixir            | `elixir-ls`                  | mise (asdf plugin)    |
 | TOML              | `taplo`                      | mise (cargo backend)  |
-| _per-language (auto-reload)_ | `fs_watcher_lsp`  | mise (cargo backend)  |
 | Java              | `jdtls`                      | Homebrew              |
 | Erlang            | `erlang_ls`                  | Homebrew              |
 | Markdown          | `marksman`                   | Homebrew              |
 
-`jdtls`, `erlang_ls`, and `marksman` aren't in the mise registry, so they're brewed by `setup.sh`. Helix's `language-servers` key **replaces** (rather than extends) the default list, so each `[[language]]` entry in `helix/languages.toml` re-declares its primary LSP alongside [`fs_watcher_lsp`](https://codeberg.org/Zentropivity/fs_watcher_lsp), which auto-reloads buffers when files change on disk.
+`jdtls`, `erlang_ls`, and `marksman` aren't in the mise registry, so they're brewed by `setup.sh`. Per-language entries in `helix/languages.toml` rely on Helix's bundled defaults for the primary LSP and only override when adding a formatter, tweaking inlay hints, or defining a new language (e.g. `text` for `.txt` / `.log` files).
 
-There's no "global" way to attach `fs_watcher_lsp` to every language — Helix's design treats `language-servers` as a hard override per language rather than a delta. The pragmatic workaround is to add the LSP explicitly to each `[[language]]` entry you actually use, plus a custom `text` entry for plain `.txt` / `.log` files (no built-in helix language for those).
+Buffer auto-reload on external disk changes is handled inside helix via the `[editor.auto-reload]` block in `helix/config.toml`, courtesy of [helix-editor/helix#13963](https://github.com/helix-editor/helix/pull/13963) cherry-picked onto the local `local-patches` branch in `~/src/helix`, with a follow-up commit that makes periodic reloads silent (statusline message, no prompt). See `helix/config.toml` for the configurable knobs.
 
 Verify: `hx --health rust` (repeat per language).
 
@@ -124,52 +142,37 @@ Custom keys defined in `helix/config.toml` (on top of Helix's defaults):
 | Key | Action |
 |---|---|
 | `space w` / `space q` / `space x` | `:w` / `:q` / `:x` (save / quit / save-quit) |
-| `space e` | open yazi as a file picker (Enter → current view; `Ctrl-V` *inside yazi* → vertical split) |
+| `A-r` | reveal current buffer in the broot sidebar pane |
 | `H` / `L` | goto-line-start / goto-line-end |
 | `C-d` / `C-u` | half-page down / up, then center cursor |
 | `jk` (insert mode) | escape to normal mode |
 
 Plus:
 - `auto-format = false` (manual `:format` only) so you don't fight a formatter you didn't invoke.
-- `insecure = true` skips Helix's "trust this workspace" prompt for every new project. Removes the seatbelt for `.helix/config.toml` payloads in untrusted repos — fine if you only open projects you authored.
-- `clipboard-provider = "pasteboard"` pins yank/paste to macOS pbcopy/pbpaste. See [Helix transparency inside zellij](#helix-transparency-inside-zellij) for why this isn't auto-detected.
+- `insecure = true` skips Helix's "trust this workspace" prompt for every new project. Removes the seatbelt for `.helix/config.toml` payloads in untrusted repos - fine if you only open projects you authored.
+- `clipboard-provider = "pasteboard"` pins yank/paste to macOS pbcopy/pbpaste. Defensive: matches auto-detect today, but locks the choice if anything in the launch chain ever exports `$TMUX`.
 
-### Helix transparency inside zellij
+### broot sidebar + persistent editor
 
-Helix renders transparently outside zellij but draws an opaque rectangle when launched inside a zellij pane. The cause is two interacting bugs:
+The default zellij layout is a vertical split: `sidebar` (broot, 25% width, persistent) on the left, `editor` (helix, 75% width, persistent) on the right. Files routed sidebar → editor stay in helix's existing buffers/splits rather than spawning a fresh editor each time, which is the architectural fix for [zellij#4893](https://github.com/zellij-org/zellij/issues/4893) (alt-screen pollution on TUI exit): there is no TUI churn during normal use - helix and broot both stay in their alt-screens for the life of the session.
 
-1. Helix queries the surrounding terminal for its background colour via OSC 11 at startup so it can restore it on exit. Zellij always answers black ([zellij-org/zellij#3590](https://github.com/zellij-org/zellij/issues/3590)).
-2. With `ui.background = {}` (the transparent helix theme idiom), Helix calls its `reset_background_color` path on theme load, which writes the cached "original" back via OSC 11 SET. Inside zellij that's now black — Helix has just told the surrounding terminal "your background is black," and ghostty's window opacity is gone for that pane.
+**Sidebar → editor (broot Enter / Ctrl-V):**
 
-Helix already has a guard for this exact failure mode for tmux ([`helix-tui/src/backend/termina.rs:104-105`](https://github.com/helix-editor/helix/blob/master/helix-tui/src/backend/termina.rs)) — `dynamic_background_color` is disabled when the `TMUX` env var is set. There's no equivalent for zellij upstream, so the workaround is to fake `TMUX=zellij` whenever helix runs inside a zellij session:
+- `Enter` on a file → `scripts/dispatch-to-editor.sh open <path>` sends `:open <path>` to the running helix over its Unix socket (helix-editor/helix PR #13896, in `local-patches`), then resolves the editor pane by its layout name and shifts zellij focus there so the cursor follows the file.
+- `Ctrl-V` on a file → same dispatcher with `vsplit` → `:vsplit <path>` over the socket.
+- If the socket is missing (helix not running, or stock helix without PR #13896), the dispatcher falls back to `zellij action new-pane --direction right --name editor -- hx <path>`. `new-pane` focuses by default, so focus still lands correctly.
 
-- The `hx()` shell function in the `.zshrc` managed block sets `TMUX=zellij` for direct shell launches.
-- The yazi opener (`yazi/yazi.toml`) does the same in its bash one-liner so the yazi → hx hand-off is covered too (the bash opener doesn't source `~/.zshrc`).
-- Helix's clipboard auto-detection prefers `tmux save-buffer`/`load-buffer` whenever `$TMUX` is set + tmux is on PATH — which would silently steal yank/paste from pbcopy. `clipboard-provider = "pasteboard"` in `helix/config.toml` pins the macOS pasteboard so the faked TMUX can't reroute the clipboard.
+**Editor → sidebar (helix `A-r`):**
 
-Upstream fix (one line, would obsolete the workaround) — widen the env check to include zellij in `helix-tui/src/backend/termina.rs:105`:
+broot is started with `--listen $HOME/.cache/broot-${ZELLIJ_SESSION_NAME}.sock` per session. Helix's `A-r` binding shells out to `scripts/dispatch-to-sidebar.sh '%{buffer_name}'`, which calls `broot --send $sock --cmd ':focus <path>'`. broot scrolls/expands to the current buffer's location - helix retains the cursor.
 
-```rust
-capabilities.dynamic_background_color = ["TMUX", "ZELLIJ"]
-    .iter()
-    .all(|var| std::env::var_os(var).is_none());
-```
+**Why named panes:** zellij's pane `name` (set in `default.kdl` via `pane name="sidebar"`/`pane name="editor"`) is surfaced as the TITLE column by `list-panes` and is stable across resizes and tab moves. The dispatcher resolves by name → id once per invocation, avoiding the fragility of OSC-0 title scraping or `focus-next-pane` heuristics.
 
-### yazi as file picker
-
-`scripts/yazi-pick.sh` wraps yazi for use as a file picker from inside a running Helix instance. **Single entry point**: press `space e` in helix to launch yazi. Inside yazi:
-
-- `Enter` (default) → picked file opens in the **current view** in helix.
-- `Ctrl-V` → picked file opens in a **vertical split** in helix.
-- `q` / `Esc` → cancel; helix stays on the buffer you were on.
-
-**How the vsplit handoff works:** yazi can't natively communicate "use vsplit" back through `--chooser-file`. The yazi keymap binds `Ctrl-V` to a Lua plugin that writes `VSPLIT:<path>` to a marker file (`$YAZI_PICK_MARKER` exported by the wrapper) and then quits yazi. The wrapper reads either the chooser-file (Enter case) or the marker (Ctrl-V case) and dispatches accordingly. Helix's keybind chain runs both `:open` and `:vsplit` with mode-aware fallbacks — only the matching command is non-no-op.
-
-**Suppressing the leader-menu flash:** before yazi enters alt-screen, the wrapper writes CSI 2J + CSI H to the main screen so the restored frame on yazi exit is blank instead of "helix-with-which-key-popup." Helix's `:redraw` is async (callback-queued) and doesn't paint synchronously inside a keybind chain, so this main-screen scrub is what actually eliminates the flicker.
+**Shell access:** the sidebar/editor split is dedicated. Spawn a shell in a new pane via zellij's pane mode (`Ctrl-p n`) or a floating pane (`Ctrl-p w`).
 
 ## Sessionizer (`hs`)
 
-`scripts/sessionizer.sh` creates/attaches a zellij session named after a project directory. New sessions auto-launch yazi via `zellij/layouts/default.kdl` (yazi → pick a file → `hx <file>` via yazi's `[opener]`).
+`scripts/sessionizer.sh` creates/attaches a zellij session named after a project directory. New sessions open the default layout - broot sidebar on the left, helix editor on the right.
 
 ```sh
 hs              # fzf-pick a project from ~/projects + zoxide frecent dirs
@@ -180,8 +183,8 @@ How it works:
 
 - Picks from `fd -d 1 ~/projects` and zoxide's frecent dirs (deduped).
 - Session name = sanitized basename (alphanumerics + `-` / `_`).
-- New session: zellij applies the `default` layout, which spawns `yazi ; exec $SHELL -i` — yazi appears immediately; when you quit yazi an interactive shell takes over the pane.
-- Already inside zellij: refuses with a hint to detach first (Ctrl-q) — zellij has no in-place "switch session" action, and detach + re-attach is fast since sessions persist on disk (`session_serialization = true`).
+- New session: zellij applies the `default` layout, which starts broot in the named `sidebar` pane (with `--listen` on a per-session socket) and helix in the named `editor` pane.
+- Already inside zellij: refuses with a hint to detach first (Ctrl-q) - zellij has no in-place "switch session" action, and detach + re-attach is fast since sessions persist on disk (`session_serialization = true`).
 - Adds the path to zoxide for future frecency-ranking.
 
 ## zellij
@@ -192,17 +195,17 @@ The previous tmux setup was replaced with zellij to get **proper 4-edge active p
 
 | Key | Action |
 |---|---|
-| `Alt h` / `Alt j` / `Alt k` / `Alt l` | move pane focus (zellij default — kept) |
+| `Alt h` / `Alt j` / `Alt k` / `Alt l` | move pane focus (zellij default - kept) |
 | `Alt [` / `Alt ]` | previous / next tab |
 | `Alt 1` … `Alt 9` | jump to tab N |
 | `Alt t` / `Alt w` | new tab / close tab |
 | `Alt f` | toggle pane fullscreen |
 | `Alt z` | toggle pane frames on/off (handy when copying with the mouse) |
-| `Alt =` / `Alt -` | resize active pane (zellij default — kept) |
+| `Alt =` / `Alt -` | resize active pane (zellij default - kept) |
 | `Ctrl q` | **detach** (overrides zellij's default Quit binding) |
 | `Alt q` | quit zellij (the destructive form, kept addressable) |
 
-**Mode entry (zellij default — kept):**
+**Mode entry (zellij default - kept):**
 
 | Key | Mode |
 |---|---|
@@ -211,7 +214,7 @@ The previous tmux setup was replaced with zellij to get **proper 4-edge active p
 | `Ctrl n` | resize (h/j/k/l increase, H/J/K/L decrease, =/+ / - shrink/grow) |
 | `Ctrl s` | scroll / search (vim keys, `s` enter search, `e` edit scrollback) |
 | `Ctrl o` | session (d detach, w workspace, c new client) |
-| `Ctrl g` | locked (no zellij keybinds intercepted — useful for nested-zellij or apps that conflict) |
+| `Ctrl g` | locked (no zellij keybinds intercepted - useful for nested-zellij or apps that conflict) |
 
 **Shell aliases for zellij session control:**
 
@@ -222,11 +225,11 @@ The previous tmux setup was replaced with zellij to get **proper 4-edge active p
 | `zks <name>` | `zellij kill-session <name>` |
 | `zka` | `zellij kill-all-sessions --yes` |
 
-**Why zellij over tmux:** tmux's pane borders are *shared* between adjacent panes — the character at each junction is part of multiple panes' borders, so the active-pane accent always spills 1 cell into neighbours. There's no native option to avoid it (tmux issues #2540, #1786 — both open with no upstream fix). Zellij draws each pane's border independently, so all 4 edges of the active pane carry the accent without spillover. **Tradeoff:** zellij has chronic resize-after-startup bugs (zellij issues #2799, #3675, #3818) — if a pane goes blank or stops accepting input after resizing the Ghostty window, detach (`Ctrl-q`) and reattach (`za <name>`).
+**Why zellij over tmux:** tmux's pane borders are *shared* between adjacent panes - the character at each junction is part of multiple panes' borders, so the active-pane accent always spills 1 cell into neighbours. There's no native option to avoid it (tmux issues #2540, #1786 - both open with no upstream fix). Zellij draws each pane's border independently, so all 4 edges of the active pane carry the accent without spillover. **Tradeoff:** zellij has chronic resize-after-startup bugs (zellij issues #2799, #3675, #3818) - if a pane goes blank or stops accepting input after resizing the Ghostty window, detach (`Ctrl-q`) and reattach (`za <name>`).
 
 **On startup tips:** `show_startup_tips false` and `show_release_notes false` suppress zellij's first-run / version-bump info screens. The sessionizer always invokes zellij with a session name, so the welcome/session-manager screen never appears in normal use.
 
-## Theming — Deep Nord Aurora
+## Theming - Deep Nord Aurora
 
 A darker, more saturated take on the canonical [Nord palette](https://www.nordtheme.com/docs/colors-and-palettes). Backgrounds drop into ink-black with a blue undertone; frosts and auroras gain saturation.
 
@@ -239,12 +242,12 @@ A darker, more saturated take on the canonical [Nord palette](https://www.nordth
 
 Where each tool's theme lives:
 
-- **Helix** — `helix/themes/nord-aurora.toml` (`theme = "nord-aurora"` in `config.toml`).
-- **Ghostty** — `ghostty/themes/nord-aurora` palette + `background-opacity = 0.92`, `background-blur = 20`. `shell-integration-features = no-cursor` so apps (zsh-helix-mode, helix) drive cursor shape.
-- **zellij** — inline `themes { deep-nord-aurora { … } }` block at the bottom of `zellij/config.kdl`. (Inline rather than `zellij/themes/*.kdl` because zellij 0.44.0 silently ignored external theme files — fixed in 0.44.1, but inlining is more robust against future regressions.)
-- **oh-my-posh** — `oh-my-posh/nord-aurora.omp.json`.
-- **Yazi** — `yazi/theme.toml`.
-- **fzf** — `FZF_DEFAULT_OPTS` exports in the `.zshrc` managed block.
+- **Helix** - `helix/themes/nord-aurora.toml` (`theme = "nord-aurora"` in `config.toml`).
+- **Ghostty** - `ghostty/themes/nord-aurora` palette + `background-opacity = 0.92`, `background-blur = 20`. `shell-integration-features = no-cursor` so apps (zsh-helix-mode, helix) drive cursor shape.
+- **zellij** - inline `themes { deep-nord-aurora { … } }` block at the bottom of `zellij/config.kdl`. (Inline rather than `zellij/themes/*.kdl` because zellij 0.44.0 silently ignored external theme files - fixed in 0.44.1, but inlining is more robust against future regressions.)
+- **oh-my-posh** - `oh-my-posh/nord-aurora.omp.json`.
+- **broot** - uses broot's default skin (no theme override yet - `broot/skins/` would be the right place if/when one is wanted).
+- **fzf** - `FZF_DEFAULT_OPTS` exports in the `.zshrc` managed block.
 
 Cursor colour is unified to **`#74BCD9`** (Frost-cyan) across Helix, ZHM, Ghostty, and oh-my-posh prompts; mode is shown by *shape* (block / bar / underline) rather than colour.
 
@@ -253,8 +256,8 @@ Cursor colour is unified to **`#74BCD9`** (Frost-cyan) across Helix, ZHM, Ghostt
 The `zsh-helix-mode/` directory is a clone of [Multirious/zsh-helix-mode](https://github.com/Multirious/zsh-helix-mode). `setup.sh` symlinks it to `~/.config/zsh-helix-mode` and the managed block sources it for you:
 
 - Starts each shell in **normal mode** (plugin's default is insert) by calling `__zhm_mode_normal` after sourcing.
-- Source guard checks for the function `__zhm_mode_normal` rather than `$ZHM_MODE` — that env var is exported by the plugin and would inherit into child shells (notably zellij panes), incorrectly skipping the source. Function defs don't inherit, so the check is per-shell-instance.
-- `KEYTIMEOUT=1` (10 ms) outside the guarded block so Esc → normal-mode is instant. Must be a plain assignment (no `export`) — the `export` form gets reset by zsh's terminal init.
+- Source guard checks for the function `__zhm_mode_normal` rather than `$ZHM_MODE` - that env var is exported by the plugin and would inherit into child shells (notably zellij panes), incorrectly skipping the source. Function defs don't inherit, so the check is per-shell-instance.
+- `KEYTIMEOUT=1` (10 ms) outside the guarded block so Esc → normal-mode is instant. Must be a plain assignment (no `export`) - the `export` form gets reset by zsh's terminal init.
 - `ZHM_CLIPBOARD_PIPE_CONTENT_TO=pbcopy` / `ZHM_CLIPBOARD_READ_CONTENT_FROM=pbpaste` for clipboard integration.
 - `ZHM_CURSOR_*` overrides so the prompt cursor colour matches Helix.
 
@@ -262,7 +265,7 @@ The `zsh-helix-mode/` directory is a clone of [Multirious/zsh-helix-mode](https:
 
 ## Notes
 
-- macOS only. Yazi opener rules use `open` and `open -R`; the zellij `copy_command` is `pbcopy`. Adjust for Linux.
-- The `.zshrc` block is designed to coexist with another managed block (e.g. an existing `dotfiles managed block`) — guards prevent double-init for mise / oh-my-posh / zsh-helix-mode.
-- Setup auto-trusts `mise/config.toml` (`mise trust`) — without this, `mise install` errors on first run with an unfamiliar config.
-- Helix `:vsplit ""` (yazi cancel in vsplit mode) errors silently in the status bar with no split created — this is by design via the wrapper's mode-aware cancel path.
+- macOS only. The zellij `copy_command` is `pbcopy`. Adjust for Linux.
+- The `.zshrc` block is designed to coexist with another managed block (e.g. an existing `dotfiles managed block`) - guards prevent double-init for mise / oh-my-posh / zsh-helix-mode.
+- Setup auto-trusts `mise/config.toml` (`mise trust`) - without this, `mise install` errors on first run with an unfamiliar config.
+- Sidebar broot must be running with `--listen` (the layout handles this) for helix's `A-r` reveal to work. If you spawn broot in a side pane manually, it won't accept `--send` commands.

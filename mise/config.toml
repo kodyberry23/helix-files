@@ -22,7 +22,6 @@ rust-analyzer                    = "latest"  # aqua: rust-lang/rust-analyzer
 elixir-ls                        = "latest"  # asdf: mise-plugins/mise-elixir-ls
 "npm:typescript"                 = "latest"
 "npm:typescript-language-server" = "latest"
-"cargo:fs_watcher_lsp"           = "latest"  # auto-reload buffers on disk change
 
 # ─── Formatters used by helix/languages.toml ──────────────────────────────
 "npm:prettier" = "latest"

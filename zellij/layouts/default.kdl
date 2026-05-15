@@ -1,20 +1,22 @@
-// Default zellij layout. New sessions auto-launch yazi as the file
-// picker; on `q` in yazi the chained `exec $SHELL -i` replaces the
-// process with an interactive shell so the pane stays usable.
+// Default zellij layout. Two named panes:
 //
-// YAZI_LOCK_ROOT pins yazi navigation to the project root via the
-// stay-root plugin (yazi/plugins/stay-root.yazi). Resolved via
-// `git rev-parse --show-toplevel` with a PWD fallback, since the
-// sessionizer always cd's into the chosen project dir before
-// exec'ing zellij. The export sticks for the lifetime of the bash
-// process so the post-yazi shell inherits it too.
+//   sidebar (18% width): broot, run via scripts/launch-sidebar.sh which
+//     handles stale-socket cleanup and exec's broot --listen on a
+//     session-scoped name. Persistent for the life of the session.
 //
-// No tab-bar / status-bar plugins — the chrome eats vertical space and
-// the mode/session info isn't worth the rows. Keybindings give the same
-// signals (mode visible via cursor shape; sessions via `zls`/`za`).
+//   editor (focused, 82% width): helix, persistent. Files routed from
+//     broot are sent here via scripts/dispatch-to-editor.sh, which
+//     resolves the pane id by name and injects ":open <path>" keystrokes
+//     using `zellij action write --pane-id`.
+//
+// Sidebar visibility is toggled by `space e` in helix, which fires
+// `zellij action toggle-fullscreen`. That expands helix to fill the
+// window (sidebar hidden but still running); toggle again to restore.
 layout {
-    pane command="bash" {
-        args "-c" "export YAZI_LOCK_ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" ; yazi ; exec ${SHELL:-zsh} -i"
-        close_on_exit true
+    pane split_direction="vertical" {
+        pane name="sidebar" size="18%" command="/Users/kodyberry/projects/helix-files/scripts/launch-sidebar.sh"
+        pane name="editor" focus=true command="/Users/kodyberry/projects/helix-files/scripts/launch-editor.sh" {
+            close_on_exit true
+        }
     }
 }

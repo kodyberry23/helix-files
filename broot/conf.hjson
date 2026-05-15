@@ -1,0 +1,151 @@
+###############################################################
+# broot config - tuned for sidebar use inside zellij.
+#
+# Sidebar role: persistent left-column file tree, kept open for
+# the lifetime of the session. Files chosen here are routed to
+# the editor pane via scripts/dispatch-to-editor.sh; broot itself
+# never exits to a chooser-file or pager.
+#
+# Documentation: https://dystroy.org/broot
+###############################################################
+
+# `g` shows the git status column (M / A / D / etc). `h` would also show
+# hidden files - left off so the tree stays focused on project files.
+default_flags: g
+
+# Triangle marker on the selected line. With a narrow sidebar this is
+# clearer than relying on background color alone.
+show_selection_mark: true
+true_colors: true
+
+# Modal mode (vim-like): start in *command* mode so j/k navigate without
+# being captured as filter input. Press `i` or `/` to enter input mode
+# for fuzzy filtering, Esc to return to command mode. This is the right
+# fit for helix users - j/k feel native, filtering is still one keystroke
+# away. https://dystroy.org/broot/modal/
+modal: true
+initial_mode: command
+
+# Verbs:
+#   - j / k → down / up (override the default :line_down / :line_up binds
+#     that use arrow keys; modal mode means these don't fight with filter
+#     typing because typing requires entering input mode first).
+#   - Enter on a file → dispatch-to-editor.sh open <file>
+#   - Ctrl-V on a file → dispatch-to-editor.sh vsplit <file>
+#   - Both dispatches stay in broot (leave_broot: false), preserving the
+#     sidebar. Directories fall through to broot's default :open_stay
+#     (Enter navigates into them).
+verbs: [
+    {
+        invocation: line_down
+        key: j
+        execution: ":line_down"
+    }
+    {
+        invocation: line_up
+        key: k
+        execution: ":line_up"
+    }
+    // Verb knobs that matter here:
+    //   - `~` is expanded by broot's path::untilde(); `$VAR` is NOT - shell
+    //     expansion only happens when leave_broot: true (broot exits via
+    //     the parent shell). With leave_broot: false the script path must
+    //     be tilde-prefixed or absolute.
+    //   - `switch_terminal: false` keeps broot's alt-screen up while the
+    //     subprocess runs. Default is true (broot suspends → runs command
+    //     in normal screen → re-enters alt-screen), which causes a ~500ms
+    //     blank flash. Our dispatcher only talks to zellij over an IPC
+    //     socket - it never touches the TTY - so the switch is wasted.
+    //   - `refresh_after: false` skips the post-exec tree rescan/redraw;
+    //     dispatch-to-editor.sh doesn't modify the filesystem so there's
+    //     nothing new to show.
+    {
+        invocation: open_in_editor
+        key: enter
+        apply_to: file
+        external: "~/projects/helix-files/scripts/dispatch-to-editor.sh open {file}"
+        leave_broot: false
+        switch_terminal: false
+        refresh_after: false
+    }
+    {
+        invocation: vsplit_in_editor
+        key: ctrl-v
+        apply_to: file
+        external: "~/projects/helix-files/scripts/dispatch-to-editor.sh vsplit {file}"
+        leave_broot: false
+        switch_terminal: false
+        refresh_after: false
+    }
+]
+
+###############################################################
+# Skin - Deep Nord Aurora.
+#
+# Skin entry format: "fg / bg [/ attr]". `none` = terminal default,
+# which lets Ghostty's transparency show through. Colors are sourced
+# from the palette in zellij/config.kdl (RGB triplets there → hex here):
+#   Polar Night: 1A1F28 polar0 · 232934 polar1 · 2C333E polar2 · 4F5870 polar3
+#   Snow Storm : D8DEE9 snow0 · E5E9F0 snow1 · ECEFF4 snow2
+#   Frost      : 6FBAB7 · 74BCD9 · 5F8FBF · 426F9E
+#   Aurora     : D04E5C red · D97757 orange · DDB867 yellow · 8DBC6E green · B97AB6 purple
+#
+# Cursor colour is unified to #74BCD9 (frost-cyan) across helix / ZHM /
+# Ghostty / oh-my-posh - the sidebar's selection follows the same accent.
+###############################################################
+skin: {
+    default:               "rgb(216, 222, 233) / none"           # snow0 on transparent
+    tree:                  "rgb(79, 88, 112) / none"             # polar3 ruler lines
+    file:                  "rgb(216, 222, 233) / none"           # snow0
+    directory:             "rgb(116, 188, 217) / none / bold"    # frost-cyan, bold
+    exe:                   "rgb(141, 188, 110) / none"           # aurora-green
+    link:                  "rgb(185, 122, 182) / none"           # aurora-purple
+    pruning:               "rgb(79, 88, 112) / none / italic"    # polar3 italic
+    perm__:                "rgb(79, 88, 112) / none"
+    perm_r:                "rgb(221, 184, 103) / none"           # aurora-yellow
+    perm_w:                "rgb(217, 119, 87) / none"            # aurora-orange
+    perm_x:                "rgb(141, 188, 110) / none"           # aurora-green
+    owner:                 "rgb(216, 222, 233) / none"
+    group:                 "rgb(79, 88, 112) / none"
+    sparse:                "rgb(221, 184, 103) / none"
+    git_branch:            "rgb(185, 122, 182) / none"           # purple
+    git_insertions:        "rgb(141, 188, 110) / none"           # green
+    git_deletions:         "rgb(208, 78, 92) / none"             # red
+    git_status_current:    "rgb(116, 188, 217) / none"
+    git_status_modified:   "rgb(221, 184, 103) / none"           # yellow
+    git_status_new:        "rgb(141, 188, 110) / none / bold"    # green
+    git_status_ignored:    "rgb(79, 88, 112) / none"
+    git_status_conflicted: "rgb(208, 78, 92) / none / bold"      # red
+    git_status_other:      "rgb(217, 119, 87) / none"            # orange
+    selected_line:         "none / rgb(35, 41, 52)"              # polar1 highlight
+    char_match:            "rgb(217, 119, 87) / none / bold"     # orange match
+    file_error:            "rgb(208, 78, 92) / none"
+    flag_label:            "rgb(79, 88, 112) / none"
+    flag_value:            "rgb(217, 119, 87) / none / bold"
+    input:                 "rgb(216, 222, 233) / none"
+    status_error:          "rgb(236, 239, 244) / rgb(208, 78, 92)"
+    status_job:            "rgb(26, 31, 40) / rgb(221, 184, 103)"
+    status_normal:         "rgb(216, 222, 233) / none"
+    status_italic:         "rgb(116, 188, 217) / none"
+    status_bold:           "rgb(116, 188, 217) / none / bold"
+    status_code:           "rgb(217, 119, 87) / none / italic"
+    status_ellipsis:       "rgb(79, 88, 112) / none"
+    purpose_normal:        "rgb(216, 222, 233) / none"
+    purpose_italic:        "rgb(116, 188, 217) / none / italic"
+    purpose_bold:          "rgb(116, 188, 217) / none / bold"
+    purpose_ellipsis:      "rgb(79, 88, 112) / none"
+    scrollbar_track:       "rgb(35, 41, 52) / none"
+    scrollbar_thumb:       "rgb(116, 188, 217) / none"
+    help_paragraph:        "rgb(216, 222, 233) / none"
+    help_bold:             "rgb(116, 188, 217) / none / bold"
+    help_italic:           "rgb(185, 122, 182) / none / italic"
+    help_code:             "rgb(217, 119, 87) / rgb(35, 41, 52)"
+    help_headers:          "rgb(217, 119, 87) / none / bold"
+    help_table_border:     "rgb(79, 88, 112) / none"
+    preview:               "rgb(216, 222, 233) / none"
+    preview_line_number:   "rgb(79, 88, 112) / none"
+    preview_match:         "none / rgb(35, 41, 52)"
+    preview_title:         "rgb(116, 188, 217) / none / bold"
+    staging_area_title:    "rgb(116, 188, 217) / none / bold"
+    mode_command_mark:     "rgb(26, 31, 40) / rgb(217, 119, 87) / bold"  # orange chip in command mode
+}

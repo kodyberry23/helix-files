@@ -29,6 +29,7 @@ window-decoration = auto
 window-padding-x = 10
 window-padding-y = 10
 window-padding-balance = false
+window-inherit-working-directory = false
 
 auto-update = check
 auto-update-channel = stable

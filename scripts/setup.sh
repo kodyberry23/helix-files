@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Bootstrap helix-files on a fresh macOS machine (and re-run safely on an
-# already-configured one — every step is idempotent).
+# already-configured one - every step is idempotent).
 #
 # Usage:
 #   scripts/setup.sh              # actually make changes
@@ -32,19 +32,18 @@ Bootstrap helix-files on a fresh macOS machine.
 
 What it does:
   1. Installs Homebrew if missing
-  2. Installs required Homebrew packages (zellij, yazi, mise, jdtls,
-     erlang_ls, oh-my-posh, fzf, fd, zoxide, eza, bat, tree, git) and the
-     Ghostty cask
-  3. Symlinks ~/.config/{helix,zellij,yazi,mise,ghostty,oh-my-posh,zsh-helix-mode}
+  2. Installs required Homebrew packages (zellij, broot, mise, jdtls,
+     erlang_ls, oh-my-posh, fzf, fd, zoxide, eza, bat, tree, git, jq) and
+     the Ghostty cask
+  3. Symlinks ~/.config/{helix,zellij,broot,mise,ghostty,oh-my-posh,zsh-helix-mode}
      -> <repo>/<name>
   4. Runs `mise install` to fetch runtimes / LSPs / formatters
   5. Builds Helix nightly from source (~/src/helix) via cargo
   6. Adds a managed block to ~/.zshrc with: mise activate, ~/.cargo/bin on
      PATH, HELIX_RUNTIME, Nord Aurora FZF colors + key bindings, zoxide
-     init, oh-my-posh init, the `hx()` wrapper that sets TMUX=zellij inside
-     zellij sessions (see README → "Helix transparency inside zellij"),
-     and the `hs` sessionizer alias. Replaces an existing helix-files
-     block if present; leaves other managed blocks alone.
+     init, oh-my-posh init, the `hx()` wrapper that stamps a stable pane
+     title, and the `hs` sessionizer alias. Replaces an existing
+     helix-files block if present; leaves other managed blocks alone.
 
 Usage:
   scripts/setup.sh              actually make changes
@@ -156,11 +155,11 @@ ensure_symlink() {
 
 	# Refuse to clobber a real file/dir at the destination.
 	if [[ -e "$dst" && ! -L "$dst" ]]; then
-		err "$dst exists and is not a symlink — move or delete it, then re-run"
+		err "$dst exists and is not a symlink - move or delete it, then re-run"
 		return 1
 	fi
 
-	# Either no $dst or it's a symlink pointing somewhere else — replace.
+	# Either no $dst or it's a symlink pointing somewhere else - replace.
 	local note=""
 	if [[ -L "$dst" ]]; then
 		note=" (replaced)"
@@ -179,7 +178,7 @@ ensure_symlink() {
 
 symlink_configs() {
 	info "~/.config symlinks"
-	local names=(helix zellij yazi mise ghostty oh-my-posh zsh-helix-mode)
+	local names=(helix zellij broot mise ghostty oh-my-posh zsh-helix-mode)
 	local failures=0
 	for name in "${names[@]}"; do
 		if [[ ! -d "$REPO_ROOT/$name" ]]; then
@@ -198,7 +197,7 @@ zshrc_block() {
 	local block
 	block=$(cat <<'EOF'
 # >>> helix-files managed block >>>
-# Managed by __REPO__/scripts/setup.sh — re-run setup.sh to update.
+# Managed by __REPO__/scripts/setup.sh - re-run setup.sh to update.
 # Remove these markers and the lines between to disable.
 
 # Activate mise only if a previous block (e.g. dotfiles) hasn't already.
@@ -207,7 +206,7 @@ if [[ -z ${MISE_SHELL:-} ]] && command -v mise >/dev/null 2>&1; then
 	eval "$(mise activate zsh)"
 fi
 
-# Cargo bin dir — needed for the source-built `hx` binary.
+# Cargo bin dir - needed for the source-built `hx` binary.
 if [[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]]; then
 	export PATH="$HOME/.cargo/bin:$PATH"
 fi
@@ -216,7 +215,7 @@ fi
 # `hx` uses HELIX_RUNTIME first, then falls back to compiled-in defaults.
 export HELIX_RUNTIME="$HOME/src/helix/runtime"
 
-# fzf — Deep Nord Aurora colors and ergonomic defaults. These exports
+# fzf - Deep Nord Aurora colors and ergonomic defaults. These exports
 # replace any previous FZF_* values, so the last block to define them wins.
 export FZF_DEFAULT_OPTS="
   --color=bg:-1,bg+:-1,gutter:-1,fg:#D8DEE9,fg+:#ECEFF4
@@ -261,7 +260,7 @@ if command -v fzf >/dev/null 2>&1; then
 	source <(fzf --zsh)
 fi
 
-# zoxide — `z <fragment>` jumps to frecent dirs. Re-running init redefines
+# zoxide - `z <fragment>` jumps to frecent dirs. Re-running init redefines
 # the same functions, so no guard needed.
 if command -v zoxide >/dev/null 2>&1; then
 	eval "$(zoxide init zsh)"
@@ -273,11 +272,11 @@ if [[ -z ${POSH_PID:-} ]] && command -v oh-my-posh >/dev/null 2>&1; then
 	eval "$(oh-my-posh init zsh --config "$HOME/.config/oh-my-posh/nord-aurora.omp.json")"
 fi
 
-# zsh-helix-mode — Helix-style modal line editor in zsh.
+# zsh-helix-mode - Helix-style modal line editor in zsh.
 # Guarded so a previous block can win if it already loaded ZHM.
 # KEYTIMEOUT=1 (10ms) makes mode-switch via Esc feel instant; the default
 # of 400ms makes ZHM seem laggy or "broken" especially inside multiplexers.
-# Guard on the FUNCTION existing rather than $ZHM_MODE — the plugin exports
+# Guard on the FUNCTION existing rather than $ZHM_MODE - the plugin exports
 # ZHM_MODE, so it's inherited by every child shell (including zellij panes),
 # which would skip a value-based guard on init. Functions don't export, so
 # this correctly detects "ZHM not yet loaded *in this shell*".
@@ -286,11 +285,11 @@ if (( ! ${+functions[__zhm_mode_normal]} )) && [[ -f "$HOME/.config/zsh-helix-mo
 	export ZHM_CLIPBOARD_READ_CONTENT_FROM="pbpaste"
 	# Override ZHM cursor colour to frost1 (matches Helix / Ghostty cursor
 	# colours). Shape differs per mode: \e[2 q = steady block, \e[5 q =
-	# blinking beam. These must be set BEFORE sourcing — the plugin uses `:=`.
+	# blinking beam. These must be set BEFORE sourcing - the plugin uses `:=`.
 	# Placeholder is __SHAPE__ rather than %s because zsh's `${var//%s/N}`
 	# parameter expansion silently fails to match `%s` (treats `%` specially
 	# in patterns regardless of EXTENDED_GLOB), leaving a literal `\e[%s q`
-	# in the cursor escape — invalid DECSCUSR, so the cursor shape never
+	# in the cursor escape - invalid DECSCUSR, so the cursor shape never
 	# updates per mode. Alphanumeric placeholder sidesteps the quirk.
 	__zhm_cursor=$'\e[0m\e[__SHAPE__ q\e]12;#74BCD9\a'
 	export ZHM_CURSOR_NORMAL=${__zhm_cursor//__SHAPE__/2}
@@ -304,93 +303,34 @@ if (( ! ${+functions[__zhm_mode_normal]} )) && [[ -f "$HOME/.config/zsh-helix-mo
 	__zhm_mode_normal
 fi
 # KEYTIMEOUT must be a plain assignment (no `export`) and live OUTSIDE the
-# guarded block — otherwise zsh's terminal init resets it to the 40-cs
+# guarded block - otherwise zsh's terminal init resets it to the 40-cs
 # default. This is the wait-for-multi-key timeout in centiseconds; 1 = 10ms
 # so Esc → ZHM normal mode feels instant instead of dragging for 400ms.
 KEYTIMEOUT=1
 
-# Dynamic OSC 0 terminal title — zellij surfaces this as the pane title.
+# Dynamic OSC 0 terminal title - zellij surfaces this as the pane title.
 # precmd fires before each prompt: "zsh %1~" (zsh + last cwd component,
 # tilde-substituted, e.g. "zsh helix-files" or "zsh ~").
 # preexec fires before each command: the typed command line, so a long-
 # running `npm install` shows up as "npm install" until it finishes.
-# `print -P` enables prompt expansion (%1~). Helix doesn't fire zsh hooks,
-# so its yazi-opener-set "hx <filename>" survives until the editor exits;
-# the next prompt then redraws "zsh ...".
+# `print -P` enables prompt expansion (%1~). These hooks only apply in
+# ad-hoc shell panes; the layout's named sidebar/editor panes set their
+# own titles via zellij.
 __hf_precmd_title() { print -Pn "\e]0;zsh %1~\a" }
 __hf_preexec_title() { printf '\e]0;%s\a' "$1" }
 typeset -ga precmd_functions preexec_functions
 (( ${precmd_functions[(I)__hf_precmd_title]} )) || precmd_functions+=(__hf_precmd_title)
 (( ${preexec_functions[(I)__hf_preexec_title]} )) || preexec_functions+=(__hf_preexec_title)
 
-# Auto-clear the pane after exiting a full-screen TUI in zellij. Zellij's
-# alt-screen handoff (see zellij-org/zellij#4293, #4006, #4893) doesn't
-# restore the pre-TUI screen on \e[?1049l, so the TUI's last frame stays
-# painted in the pane. We clear conditionally (only after a known TUI) so
-# the output of normal commands like `ls` and `git diff` isn't wiped too.
-# Extend __HF_TUI_NAMES to cover more programs.
-typeset -ga __HF_TUI_NAMES __HF_TUI_MODIFIERS
-__HF_TUI_NAMES=(hx helix yazi lazygit lazydocker htop btop ncdu k9s ranger
-                broot nnn less more man nvim vim view neovim tig glow bat)
-__HF_TUI_MODIFIERS=(sudo time command builtin noglob nocorrect exec)
-typeset -gi __HF_LAST_WAS_TUI=0
-
-# Implemented with [[ … ]] guards rather than `case`: this body lives
-# inside a heredoc in a `$(...)` substitution, and bash's parser still
-# scans `;;` even with single-quoted heredocs, so a case statement
-# breaks setup.sh's own parse. ${(z)...} is zsh's shell tokenizer —
-# same parse as your typed command line.
-__hf_preexec_tui_track() {
-	[[ -n ${ZELLIJ:-} ]] || return
-	local -a parts
-	parts=(${(z)1})
-	local word
-	for word in $parts; do
-		[[ $word == *=* ]] && continue
-		(( ${__HF_TUI_MODIFIERS[(Ie)$word]} )) && continue
-		# `\hx` syntax in zsh bypasses alias/function lookup — strip it.
-		word=${word#\\}
-		(( ${__HF_TUI_NAMES[(Ie)$word]} )) && __HF_LAST_WAS_TUI=1
-		return
-	done
-}
-
-# `clear` alone leaves the alt-screen frame painted in zellij's pane
-# scrollback; the explicit \e[3J wipes that too so we land on a fresh
-# pane instead of one that just scrolled the TUI frame off-viewport.
-__hf_precmd_tui_clear() {
-	(( __HF_LAST_WAS_TUI )) || return
-	__HF_LAST_WAS_TUI=0
-	clear
-	printf '\e[3J'
-}
-
-(( ${preexec_functions[(I)__hf_preexec_tui_track]} )) || preexec_functions+=(__hf_preexec_tui_track)
-(( ${precmd_functions[(I)__hf_precmd_tui_clear]} )) || precmd_functions+=(__hf_precmd_tui_clear)
-
-# helix's OSC 11 background-color carve-out only checks TMUX, not ZELLIJ
-# (helix-tui/src/backend/termina.rs:104-105). Without faking TMUX inside a
-# zellij session, helix queries the bg, zellij always answers black
-# (zellij-org/zellij#3590), and helix writes that black back via OSC 11 SET
-# — painting the pane opaque and defeating ghostty's transparency. Pairs
-# with clipboard-provider=pasteboard in helix/config.toml so the faked
-# TMUX doesn't reroute yank/paste through `tmux save-buffer`. yazi/yazi.toml
-# duplicates this for the yazi → hx launch path (bash opener doesn't read
-# ~/.zshrc).
-# Post-exit clear is now handled centrally by the __hf_precmd_tui_clear
-# hook above — works for every TUI in __HF_TUI_NAMES, not just helix.
-# Title: overrides preexec's "hx file.txt" with "hx <project>" so the
-# zellij pane frame is stable across buffer switches inside helix.
+# `hx` wrapper: stamps a stable "hx <project>" OSC 0 title before launching
+# helix from an ad-hoc shell pane (not the layout's editor pane - that one
+# starts helix directly and inherits the pane's KDL `name`). Useful when a
+# user spawns a side pane and runs hx manually for one-off edits.
 hx() {
 	local __proj
 	__proj=$(git rev-parse --show-toplevel 2>/dev/null) || __proj=$PWD
 	printf '\e]0;hx %s\a' "${__proj##*/}"
-
-	if [[ -n ${ZELLIJ:-} ]]; then
-		TMUX=zellij command hx "$@"
-	else
-		command hx "$@"
-	fi
+	command hx "$@"
 }
 
 # Helix + zellij sessionizer
@@ -399,8 +339,9 @@ alias hs="__REPO__/scripts/sessionizer.sh"
 # zellij session helpers
 alias zls='zellij list-sessions'              # list sessions
 alias za='zellij attach'                      # attach (with -c create); usage: za <name>
-alias zks='zellij kill-session'               # kill one session — usage: zks <name>
+alias zks='zellij kill-session'               # kill one session - usage: zks <name>
 alias zka='zellij kill-all-sessions --yes'    # kill all sessions
+alias zds='zellij delete-session'             # delete one session (use --force to kill+delete); usage: zds <name>
 
 # <<< helix-files managed block <<<
 EOF
@@ -476,7 +417,7 @@ mise_install() {
 		warn "mise not on PATH; skipping"
 		return
 	fi
-	# `mise install` reads ~/.config/mise/config.toml — only meaningful once
+	# `mise install` reads ~/.config/mise/config.toml - only meaningful once
 	# the symlink step succeeded.
 	if [[ ! -L "$HOME/.config/mise" ]]; then
 		warn "~/.config/mise is not a symlink yet; skipping (resolve symlink errors and re-run)"
@@ -524,17 +465,12 @@ install_helix_nightly() {
 		return
 	fi
 
-	# Mise installs rust to its shims dir; if `mise activate` hasn't run for
-	# this script's shell, prepend the shims explicitly.
-	if ! has_cmd cargo; then
-		export PATH="$HOME/.local/share/mise/shims:$HOME/.cargo/bin:$PATH"
-	fi
-	if ! has_cmd cargo; then
-		err "cargo not found — ensure rust is installed (mise install / rustup) and re-run"
+	if ! ensure_cargo_on_path; then
+		err "cargo not found - ensure rust is installed (mise install / rustup) and re-run"
 		return 1
 	fi
 	if ! has_cmd git; then
-		err "git not found — install via brew first"
+		err "git not found - install via brew first"
 		return 1
 	fi
 
@@ -578,7 +514,7 @@ main() {
 		exit 1
 	fi
 	if $DRY_RUN; then
-		info "Dry-run complete — no changes made"
+		info "Dry-run complete - no changes made"
 		echo "  Re-run without --dry-run to apply."
 	else
 		info "Done"
@@ -587,6 +523,7 @@ main() {
 		echo "  1. Open a new terminal tab so the new .zshrc is sourced"
 		echo "  2. Try the sessionizer:  hs"
 		echo "  3. Verify Helix sees LSPs:  hx --health rust"
+		echo "  4. (Optional) Apply local Helix patches - see README \"Local Helix patches\""
 	fi
 }
 

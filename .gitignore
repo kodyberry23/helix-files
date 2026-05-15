@@ -4,7 +4,7 @@
 # macOS
 .DS_Store
 
-# Third-party plugin cloned by scripts/setup.sh — not tracked here, the
+# Third-party plugin cloned by scripts/setup.sh - not tracked here, the
 # script keeps it current via `git pull --ff-only` (handled by update.sh).
 zsh-helix-mode/
 

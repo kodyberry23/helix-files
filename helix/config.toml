@@ -7,22 +7,32 @@ bufferline = "always"
 color-modes = true
 cursorline = true
 auto-format = false
-# `focus-lost` alone (the legacy `auto-save = true` form) only saves when
-# Helix loses focus — useless while you're actively editing. `after-delay`
-# is what clears the `[+]` dirty flag that fs_watcher_lsp leaves on the
-# buffer after an external write (e.g., a formatter ran outside Helix):
-# the LSP applies an edit to match disk, the buffer matches disk in
-# content but is marked dirty, and 1s of idle later auto-save writes it
-# back and clears the flag without needing `:reload`.
+# `focus-lost` saves when Helix loses focus. `after-delay` adds a 1s idle
+# auto-save so an unattended buffer doesn't sit dirty for long - the
+# auto-reload handler below skips buffers with unsaved edits, so a buffer
+# left modified will never get reload-prompted for external changes.
 auto-save = { focus-lost = true, after-delay = { enable = true, timeout = 1000 } }
+
+# Auto-reload externally-modified files. Patched in via helix-editor/helix
+# PR #13963 with a local tweak that silences the periodic reload (see
+# README for build provenance).
+# - focus-gained: on terminal refocus, silently reload any open buffer
+#   whose mtime advanced.
+# - periodic.enable + interval: same check on a timer.
+# Unsaved buffers are filtered out before reload, so in-flight edits
+# can never be clobbered - they just stay invisible to the check until
+# you save (which is why the auto-save block above matters).
+[editor.auto-reload]
+focus-gained = true
+periodic.enable = true
+periodic.interval = 3000
 completion-trigger-len = 1
 true-color = true
-# Pin to pbcopy/pbpaste. Auto-detect would route through `tmux save-buffer`
-# when TMUX is set + tmux is on PATH, and we deliberately set TMUX=zellij
-# inside zellij sessions (see scripts/setup.sh hx()) for the OSC 11 bg
-# workaround — pinning prevents that from stealing the clipboard.
+# Pin to pbcopy/pbpaste on macOS. Redundant with auto-detect today, but
+# defensive: if anything in the launch chain ever sets TMUX again, helix's
+# auto-detect would prefer `tmux save-buffer` over pasteboard.
 clipboard-provider = "pasteboard"
-# Implicitly trust every workspace — skips the "trust this project?" prompt
+# Implicitly trust every workspace - skips the "trust this project?" prompt
 # on first open. The flag is named `insecure` because it disables the guard
 # against malicious local-config / language-server payloads in untrusted
 # repos. Safe enough when you only open projects you authored.
@@ -84,27 +94,18 @@ newline = "⏎"
 "H" = "goto_line_start"
 "L" = "goto_line_end"
 
-# Yazi as file picker. `space e` opens yazi; the action (open vs. vsplit)
-# is decided FROM WITHIN yazi:
-#   Enter → :open <picked>
-#   C-v   → :vsplit <picked>  (yazi-side keybind in yazi/keymap.toml)
-#
-# Helix can't pick between :open and :vsplit from one substitution, so the
-# chain runs both. The wrapper emits a real path only for its corresponding
-# mode and an inert sentinel for the other (current buffer for :open,
-# `/dev/null` for :vsplit). The trailing `:echo ""` clears the status-bar
-# error :vsplit raises against /dev/null (character device → IrregularFile).
-#
-# The :redraw repaints helix after yazi exits. The which-key popup-flash
-# is suppressed in yazi-pick.sh itself (it clears the main screen before
-# yazi enters alt-screen, so the restored pixels are blank).
-"space"."e" = [
-    ":insert-output $HOME/projects/helix-files/scripts/yazi-pick.sh run '%{file_path_absolute}'",
-    ":redraw",
-    ":open \"%sh{$HOME/projects/helix-files/scripts/yazi-pick.sh open '%{file_path_absolute}'}\"",
-    ":vsplit \"%sh{$HOME/projects/helix-files/scripts/yazi-pick.sh vsplit '%{file_path_absolute}'}\"",
-    ':echo ""',
-]
+# EXPERIMENT: toggle the sidebar pane by close/spawn instead of
+# toggle-fullscreen on the editor. See scripts/toggle-sidebar.sh for
+# the diagnostic rationale. If this kills the 50%->18% flicker, the
+# culprit was helix's repaint under fullscreen restoration; if not,
+# zellij's pane sizing itself is involved.
+"space"."e" = ":sh $HOME/projects/helix-files/scripts/toggle-sidebar.sh"
+
+# Reveal current buffer in the broot sidebar pane. broot is started with
+# --listen on a per-session socket (see zellij/layouts/default.kdl); the
+# dispatcher sends a `:focus <path>` command over that socket so broot
+# scrolls/expands to the current file without stealing focus from helix.
+"A-r" = ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}'"
 
 [keys.insert]
 "j"."k" = "normal_mode"

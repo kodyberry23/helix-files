@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# zellij + helix sessionizer — create/attach a zellij session named after
-# a chosen directory. New sessions auto-launch yazi via the default layout
-# at zellij/layouts/default.kdl (yazi → pick a file → hx via yazi opener).
+# zellij + helix sessionizer - create/attach a zellij session named after
+# a chosen directory. New sessions open the default layout at
+# zellij/layouts/default.kdl (broot sidebar + persistent helix editor).
 # Usage: sessionizer.sh [path]
 #   - If a path arg is provided, use it.
 #   - Otherwise, pick from PROJECT_ROOTS via fzf (combined with zoxide frecency).
@@ -35,7 +35,7 @@ else
 		project_dirs=$(fd -H -t d -d 1 . "${PROJECT_ROOTS[@]}" 2>/dev/null || true)
 
 		if has_cmd zoxide; then
-			zoxide_dirs=$(zoxide query -l 2>/dev/null | grep -E "^($HOME/projects)" || true)
+			zoxide_dirs=$(zoxide query -l 2>/dev/null | grep -F "$HOME/projects/" || true)
 			candidates=$(printf '%s\n%s\n' "$project_dirs" "$zoxide_dirs" | awk 'NF && !seen[$0]++')
 		else
 			candidates=$project_dirs
@@ -76,9 +76,9 @@ session_name=$(basename "$selected" | tr ' .:' '___')
 # ─── Attach or create ─────────────────────────────────────────────────────
 # `zellij attach -c` attaches if the session exists, creates it otherwise.
 # When created fresh, default_layout (set in config.kdl to "default")
-# drives the yazi-on-startup flow.
+# spawns the broot sidebar + helix editor pair.
 #
-# Inside zellij: zellij has no in-place "switch-session" — refuse with a
+# Inside zellij: zellij has no in-place "switch-session" - refuse with a
 # hint so the user detaches first. ZELLIJ env var is set inside sessions.
 if [[ -n ${ZELLIJ:-} ]]; then
 	err "already inside zellij; detach first (Ctrl-q) then re-run hs"

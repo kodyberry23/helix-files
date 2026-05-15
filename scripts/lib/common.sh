@@ -19,11 +19,47 @@ would() { printf "${C_CYAN}  ~${C_RESET} would %s\n"  "$*";     }
 
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
 
+# Ensure `cargo` is callable in the current shell. setup.sh / update.sh
+# may run non-interactively (no `mise activate`), in which case mise's
+# rust shim isn't on PATH yet. Falls back to ~/.cargo/bin too. Returns
+# 0 if cargo is reachable after the fixup, 1 otherwise.
+ensure_cargo_on_path() {
+	has_cmd cargo && return 0
+	export PATH="$HOME/.local/share/mise/shims:$HOME/.cargo/bin:$PATH"
+	has_cmd cargo
+}
+
+# Resolve $1 to an absolute path. Works for directories and for files that
+# don't exist yet (resolves the parent, then appends the basename). Used
+# by dispatch-to-editor / dispatch-to-sidebar so helix and broot interpret
+# routed paths the same regardless of caller cwd.
+abs_path() {
+	if [[ -d $1 ]]; then
+		(cd "$1" && pwd)
+	else
+		echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+	fi
+}
+
+# Print the zellij pane id for the terminal pane whose TITLE matches $1,
+# or nothing if no match. TITLE is the layout's `pane name="..."` and
+# stable across resizes, tab moves, and restarts (but not manual rename
+# via the zellij rename-pane action).
+#
+# zellij action list-panes returns a plain-text table - despite the
+# `--help` text mentioning "table or JSON", there is no working --json
+# flag, so awk-parsing the text is the only option today.
+resolve_pane_id_by_name() {
+	local name=${1:?usage: resolve_pane_id_by_name <name>}
+	zellij action list-panes 2>/dev/null \
+		| awk -v n="$name" '$2=="terminal" && $3==n {print $1; exit}'
+}
+
 # ─── Shared package lists (single source of truth) ────────────────────────
 # setup.sh installs these; update.sh upgrades them. Helix is intentionally
-# excluded — it's built from source in setup.sh. bat and tree feed the FZF
+# excluded - it's built from source in setup.sh. bat and tree feed the FZF
 # preview commands wired up in the .zshrc managed block.
-BREW_FORMULAS=(zellij yazi mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git)
+BREW_FORMULAS=(zellij broot mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq)
 BREW_CASKS=(ghostty)
 
 # ─── Dry-run flag handling ────────────────────────────────────────────────
@@ -42,10 +78,10 @@ parse_dry_run_args() {
 	done
 }
 
-# Print "DRY RUN — no changes will be made" if $1 is true.
+# Print "DRY RUN - no changes will be made" if $1 is true.
 dry_run_banner() {
 	if [[ "${1:-false}" == "true" ]]; then
-		info "DRY RUN — no changes will be made"
+		info "DRY RUN - no changes will be made"
 		echo
 	fi
 }

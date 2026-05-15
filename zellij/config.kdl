@@ -3,7 +3,7 @@
 // model AND add direct Alt-key shortcuts that mirror the previous tmux
 // setup so muscle memory carries over.
 
-// Theme inlined (block at the bottom of this file) — zellij 0.44.0 silently
+// Theme inlined (block at the bottom of this file) - zellij 0.44.0 silently
 // ignored external themes/*.kdl files (zellij-org/zellij#4909, fixed in
 // 0.44.1). Inlining sidesteps that and keeps theme + consumer versioned
 // together. `background 0` renders as ANSI default-bg (\e[49m) so ghostty's
@@ -27,7 +27,7 @@ default_mode "normal"
 default_layout "default"
 
 mouse_mode true
-// Don't repaint pane frames when the mouse hovers — the highlight reads as
+// Don't repaint pane frames when the mouse hovers - the highlight reads as
 // "this pane is doing something" and competes with the focus accent.
 mouse_hover_effects false
 copy_command "pbcopy"
@@ -40,12 +40,12 @@ on_force_close "detach"
 
 // Persist sessions (tabs, panes, cwds, running commands) so a crashed or
 // closed Ghostty window can be reattached with state restored. Tradeoff:
-// LSPs and editor processes get re-spawned on resurrection — fine for
+// LSPs and editor processes get re-spawned on resurrection - fine for
 // helix / yazi / shells.
 session_serialization true
 serialize_pane_viewport true
 
-// Hide the session name from the pane-frame chrome — the session name is
+// Hide the session name from the pane-frame chrome - the session name is
 // already in the status bar; doubling it on every frame is noise.
 ui {
     pane_frames {
@@ -58,7 +58,7 @@ ui {
 // and overlay direct Alt-key shortcuts.
 keybinds {
     shared_except "locked" {
-        // Tab management — direct (no mode prefix needed)
+        // Tab management - direct (no mode prefix needed)
         bind "Alt t" { NewTab; }
         bind "Alt w" { CloseTab; }
         bind "Alt 1" { GoToTab 1; }
@@ -77,7 +77,7 @@ keybinds {
         // Toggle pane frames on/off (useful when copying with mouse)
         bind "Alt z" { TogglePaneFrames; }
         // Detach (was tmux Ctrl-q). Replaces zellij's default Quit binding
-        // — Quit is destructive (closes the session entirely); detach is
+        // - Quit is destructive (closes the session entirely); detach is
         // what's wanted 95% of the time. Quit is still reachable via
         // session mode (Ctrl-o, then `q`) or Alt-q below.
         bind "Ctrl q" { Detach; }

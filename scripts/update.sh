@@ -9,7 +9,10 @@
 #      and the zshrc managed-block content are current)
 #   2. Brew packages we installed: brew upgrade (with auto-update disabled)
 #   3. mise-managed tools: mise upgrade (runtimes, LSPs, formatters)
-#   4. Helix nightly: git pull + cargo install --path helix-term --locked
+#   4. Helix nightly: git pull + cargo install --path helix-term --locked.
+#      Detects a `local-patches` branch (PR #13896 socket + PR #13963
+#      auto-reload + local follow-ups) and won't try to fast-forward it -
+#      just fetches origin/master and reports if a rebase is available.
 #   5. zsh-helix-mode: git pull --ff-only
 #   6. ~/.zshrc managed block: re-stamp via `setup.sh --only-zshrc` so
 #      drift between setup.sh's zshrc_block heredoc and the deployed
@@ -40,13 +43,13 @@ ZHM_DIR="$REPO_ROOT/zsh-helix-mode"
 usage() {
 	cat <<'USAGE'
 Update dependencies installed by setup.sh. Skips `brew update` on Homebrew
-itself — pass HOMEBREW_NO_AUTO_UPDATE=1 to `brew upgrade`.
+itself - pass HOMEBREW_NO_AUTO_UPDATE=1 to `brew upgrade`.
 
 Updates:
   1. helix-files repo (git pull --ff-only)
   2. Brew packages we manage (brew upgrade, no auto-update)
   3. mise-managed tools (runtimes, LSPs, formatters)
-  4. Helix nightly (git pull + cargo install)
+  4. Helix nightly (pull on master, or fetch + report-only on local-patches)
   5. zsh-helix-mode (git pull)
   6. ~/.zshrc managed block (setup.sh --only-zshrc)
 
@@ -65,7 +68,7 @@ dry_run_banner "$DRY_RUN"
 # ─── 1. helix-files repo itself ───────────────────────────────────────────
 # Pull this repo first so subsequent steps (and the --only-zshrc shellout)
 # see the latest setup.sh/zshrc_block content. The currently-executing
-# script keeps its OLD common.sh sourced — see the caveat in the header.
+# script keeps its OLD common.sh sourced - see the caveat in the header.
 update_helix_files_repo() {
 	info "helix-files repo"
 	if [[ ! -d "$REPO_ROOT/.git" ]]; then
@@ -93,7 +96,7 @@ update_brew_packages() {
 	fi
 
 	# HOMEBREW_NO_AUTO_UPDATE=1 disables the automatic `brew update` that
-	# normally runs before any upgrade — this is what keeps Homebrew itself
+	# normally runs before any upgrade - this is what keeps Homebrew itself
 	# (the formula database / git repo) untouched.
 	export HOMEBREW_NO_AUTO_UPDATE=1
 
@@ -134,31 +137,65 @@ update_brew_packages() {
 	ok "brew packages up to date"
 }
 
-# ─── 3. Helix nightly ─────────────────────────────────────────────────────
+# ─── 4. Helix nightly ─────────────────────────────────────────────────────
+# Handles two checkout modes:
+#   - master (vanilla): fast-forward + rebuild if HEAD moved
+#   - local-patches: don't pull (would conflict with the cherry-picked PRs);
+#                    fetch origin/master and report if a rebase is offered
 update_helix() {
 	info "Helix nightly"
 	if [[ ! -d "$HELIX_SRC/.git" ]]; then
-		warn "$HELIX_SRC not cloned yet — run setup.sh first; skipping"
+		warn "$HELIX_SRC not cloned yet - run setup.sh first; skipping"
 		return
 	fi
 
 	if $DRY_RUN; then
-		would "git -C $HELIX_SRC pull --ff-only"
+		would "fetch origin master; pull or report depending on branch"
 		would "cargo install --path $HELIX_SRC/helix-term --locked (only if HEAD moved)"
 		return
 	fi
 
-	# Mise puts cargo on a shims path that our shell may not have if this
-	# script is invoked from a non-interactive context.
-	if ! has_cmd cargo; then
-		export PATH="$HOME/.local/share/mise/shims:$HOME/.cargo/bin:$PATH"
-	fi
-	if ! has_cmd cargo; then
-		err "cargo not found — install rust via mise / rustup and re-run"
+	if ! ensure_cargo_on_path; then
+		err "cargo not found - install rust via mise / rustup and re-run"
 		return 1
 	fi
 
-	# Capture HEAD before/after so we only rebuild when something actually changed.
+	if [[ -n "$(git -C "$HELIX_SRC" status --porcelain)" ]]; then
+		warn "$HELIX_SRC has uncommitted changes; skipping pull (commit or stash first)"
+		return
+	fi
+
+	git -C "$HELIX_SRC" fetch origin master >/dev/null 2>&1 || true
+	local branch
+	branch=$(git -C "$HELIX_SRC" branch --show-current)
+
+	# local-patches branch: cherry-picks of PR #13896 (socket) + PR #13963
+	# (auto-reload) + project-local follow-ups. Don't fast-forward; just
+	# report upstream movement so the user can rebase deliberately.
+	if [[ "$branch" == "local-patches" ]]; then
+		local behind
+		behind=$(git -C "$HELIX_SRC" rev-list --count HEAD..origin/master 2>/dev/null || echo 0)
+		if [[ ${behind:-0} -gt 0 ]]; then
+			warn "on 'local-patches' branch; origin/master has $behind new commit(s)"
+			warn "  rebase manually:  cd $HELIX_SRC && git rebase origin/master"
+		else
+			ok "on 'local-patches' branch; up to date with origin/master"
+		fi
+		# Rebuild unconditionally - the user may have applied a local
+		# follow-up commit since the last `cargo install`.
+		info "  rebuilding helix-term"
+		cargo install --path "$HELIX_SRC/helix-term" --locked --force
+		ok "rebuilt ($(git -C "$HELIX_SRC" rev-parse --short HEAD))"
+		return
+	fi
+
+	# Any other non-master branch: surface and bail, don't guess intent.
+	if [[ "$branch" != "master" ]]; then
+		warn "$HELIX_SRC is on branch '$branch'; skipping (unknown to update.sh)"
+		return
+	fi
+
+	# Vanilla master path: fast-forward + rebuild if HEAD moved.
 	local before after
 	before=$(git -C "$HELIX_SRC" rev-parse HEAD)
 	git -C "$HELIX_SRC" pull --ff-only
@@ -174,7 +211,7 @@ update_helix() {
 	ok "rebuilt"
 }
 
-# ─── 4. mise-managed tools ────────────────────────────────────────────────
+# ─── 3. mise-managed tools ────────────────────────────────────────────────
 update_mise_tools() {
 	info "mise tools"
 	if ! has_cmd mise; then
@@ -192,7 +229,7 @@ update_mise_tools() {
 	ok "mise tools upgraded"
 }
 
-# ─── 5. zsh-helix-mode ────────────────────────────────────────────────────
+# ─── 6. zsh-helix-mode ────────────────────────────────────────────────────
 update_zsh_helix_mode() {
 	info "zsh-helix-mode"
 	if [[ ! -d "$ZHM_DIR/.git" ]]; then
@@ -207,7 +244,7 @@ update_zsh_helix_mode() {
 	ok "up to date"
 }
 
-# ─── 6. ~/.zshrc managed block ────────────────────────────────────────────
+# ─── 7. ~/.zshrc managed block ────────────────────────────────────────────
 # Shells out to setup.sh in a fresh bash process so it picks up the
 # zshrc_block heredoc from the just-pulled tree (not whatever update.sh
 # happened to source at startup).
@@ -229,7 +266,7 @@ main() {
 
 	echo
 	if $DRY_RUN; then
-		info "Dry-run complete — no changes made"
+		info "Dry-run complete - no changes made"
 		echo "  Re-run without --dry-run to apply."
 	else
 		info "Done"

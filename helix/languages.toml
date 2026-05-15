@@ -3,17 +3,10 @@
 # we only override here when we want extra behavior (formatters, args, etc).
 # See: https://docs.helix-editor.com/languages.html
 #
-# NOTE: Setting `language-servers` on a [[language]] entry replaces the
-# default list, so each language re-declares its primary LSP alongside
-# fs_watcher_lsp.
-
-# ─── fs_watcher_lsp ───────────────────────────────────────────────────────
-# Auto-reloads the buffer when the file changes on disk. Reloads flow
-# through Helix's undo/redo stack. Install: cargo install fs_watcher_lsp
-# (or `mise install` — see mise/config.toml).
-[language-server.fs_watcher_lsp]
-command = "fs_watcher_lsp"
-args = []
+# Buffer auto-reload on disk changes is handled in-editor by the
+# [editor.auto-reload] block in config.toml (helix-editor/helix PR #13963
+# cherry-picked into local-patches), so no per-language fs_watcher_lsp
+# entries are needed.
 
 # ─── marksman ─────────────────────────────────────────────────────────────
 # Markdown LSP (xrefs, headings nav, completions). Installed via Homebrew
@@ -26,7 +19,6 @@ args = ["server"]
 [[language]]
 name = "rust"
 auto-format = false
-language-servers = ["rust-analyzer", "fs_watcher_lsp"]
 
 [language-server.rust-analyzer.config.check]
 command = "clippy"
@@ -34,7 +26,7 @@ command = "clippy"
 # ─── TypeScript / JavaScript ──────────────────────────────────────────────
 # Inferred-type inlay hints (the `: SomeType` annotations the LSP injects
 # next to `const x = ...`, return values, class fields, and parameters) are
-# disabled here. Parameter NAMES and enum member values stay on — those
+# disabled here. Parameter NAMES and enum member values stay on - those
 # aren't inferred types and are usually still useful. Re-enable any of
 # these by flipping the flag if you want a specific hint back.
 [language-server.typescript-language-server.config.typescript.inlayHints]
@@ -52,76 +44,54 @@ functionLikeReturnTypes = { enabled = false }
 [[language]]
 name = "typescript"
 auto-format = false
-language-servers = ["typescript-language-server", "fs_watcher_lsp"]
 formatter = { command = "prettier", args = ["--parser", "typescript"] }
 
 [[language]]
 name = "tsx"
 auto-format = false
-language-servers = ["typescript-language-server", "fs_watcher_lsp"]
 formatter = { command = "prettier", args = ["--parser", "typescript"] }
 
 [[language]]
 name = "javascript"
 auto-format = false
-language-servers = ["typescript-language-server", "fs_watcher_lsp"]
 formatter = { command = "prettier", args = ["--parser", "babel"] }
 
 [[language]]
 name = "jsx"
 auto-format = false
-language-servers = ["typescript-language-server", "fs_watcher_lsp"]
 formatter = { command = "prettier", args = ["--parser", "babel"] }
 
 # ─── Java ─────────────────────────────────────────────────────────────────
 [[language]]
 name = "java"
 auto-format = false
-language-servers = ["jdtls", "fs_watcher_lsp"]
 
 # ─── Elixir ───────────────────────────────────────────────────────────────
 [[language]]
 name = "elixir"
 auto-format = false
-language-servers = ["elixir-ls", "fs_watcher_lsp"]
-
-[[language]]
-name = "heex"
-language-servers = ["elixir-ls", "fs_watcher_lsp"]
-
-# ─── Erlang ───────────────────────────────────────────────────────────────
-[[language]]
-name = "erlang"
-language-servers = ["erlang-ls", "fs_watcher_lsp"]
 
 # ─── Misc formatters ──────────────────────────────────────────────────────
-# These entries restate the default primary LSP only when one exists in
-# Helix's bundled defaults — otherwise just fs_watcher_lsp. Helix's
-# `language-servers` field replaces the default list, so omitting an LSP
-# here would silently disable it even if installed.
 [[language]]
 name = "json"
-language-servers = ["vscode-json-language-server", "fs_watcher_lsp"]
 formatter = { command = "prettier", args = ["--parser", "json"] }
 
 [[language]]
 name = "markdown"
-language-servers = ["marksman", "fs_watcher_lsp"]
+language-servers = ["marksman"]
 soft-wrap.enable = true
 formatter = { command = "prettier", args = ["--parser", "markdown"] }
 
 [[language]]
 name = "toml"
-language-servers = ["taplo", "fs_watcher_lsp"]
 formatter = { command = "taplo", args = ["fmt", "-"] }
 
-# Helix has no built-in "text" language, so define one for plain .txt.
-# No tree-sitter parser; fs_watcher_lsp is the only attached LSP so the
-# buffer auto-reloads when the file changes on disk.
+# Helix has no built-in "text" language, so define one for plain .txt / .log.
+# No LSP attached - disk-change reloads come from [editor.auto-reload] in
+# config.toml.
 [[language]]
 name = "text"
 scope = "text.plain"
 file-types = ["txt", "log"]
 roots = []
-language-servers = ["fs_watcher_lsp"]
 soft-wrap.enable = true

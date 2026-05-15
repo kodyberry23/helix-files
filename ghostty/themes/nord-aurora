@@ -1,10 +1,10 @@
-# Deep Nord Aurora — Nord palette pushed darker/richer:
+# Deep Nord Aurora - Nord palette pushed darker/richer:
 #   • Polar Night backgrounds drop into ink-black with a blue undertone
 #   • Frost cools gain saturation
 #   • Aurora warms shift moodier (richer crimson, terracotta, amber, plum)
 # Reference: https://www.nordtheme.com/docs/colors-and-palettes
 # Note: Ghostty's `palette = N=#hex` parser does not accept trailing
-# comments on the same line — keep palette annotations on their own lines.
+# comments on the same line - keep palette annotations on their own lines.
 
 # ─── ANSI 0–7 ─────────────────────────────────────────────────────────────
 # 0 black           : Polar Night (deep ink)
