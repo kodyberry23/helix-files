@@ -12,10 +12,17 @@
 // Sidebar visibility is toggled by `space e` in helix, which fires
 // `zellij action toggle-fullscreen`. That expands helix to fill the
 // window (sidebar hidden but still running); toggle again to restore.
+// Commands are routed through `sh -c` so $HOME expands at exec time.
+// zellij's `command=` attribute is passed straight to execve (no shell),
+// so a bare `$HOME/...` path would not expand. Both machines keep this
+// repo at $HOME/projects/helix-files.
 layout {
     pane split_direction="vertical" {
-        pane name="sidebar" size="18%" command="/Users/kodyberry/projects/helix-files/scripts/launch-sidebar.sh"
-        pane name="editor" focus=true command="/Users/kodyberry/projects/helix-files/scripts/launch-editor.sh" {
+        pane name="sidebar" size="18%" command="sh" {
+            args "-c" "exec $HOME/projects/helix-files/scripts/launch-sidebar.sh"
+        }
+        pane name="editor" focus=true command="sh" {
+            args "-c" "exec $HOME/projects/helix-files/scripts/launch-editor.sh"
             close_on_exit true
         }
     }
