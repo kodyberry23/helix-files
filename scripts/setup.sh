@@ -28,7 +28,7 @@ MARKER_END="# <<< helix-files managed block <<<"
 # (auto-reload, configured by [editor.auto-reload] in helix/config.toml),
 # plus a small "silent reload" local commit on top. Upstream is added as
 # `upstream` so rebasing local-patches onto fresh master stays a one-liner.
-HELIX_SRC="$HOME/src/helix"
+HELIX_SRC="$HOME/projects/helix"
 HELIX_REPO="https://github.com/kodyberry23/helix"
 HELIX_UPSTREAM="https://github.com/helix-editor/helix"
 HELIX_BRANCH="local-patches"
@@ -45,7 +45,7 @@ What it does:
   3. Symlinks ~/.config/{helix,zellij,broot,mise,ghostty,oh-my-posh,zsh-helix-mode}
      -> <repo>/<name>
   4. Runs `mise install` to fetch runtimes / LSPs / formatters
-  5. Builds Helix from source at ~/src/helix - clones the kodyberry23/helix
+  5. Builds Helix from source at ~/projects/helix - clones the kodyberry23/helix
      fork's `local-patches` branch (PR #13896 socket + PR #13963 auto-reload
      + a silent-reload tweak), runs `cargo install --path helix-term`
   6. Adds a managed block to ~/.zshrc with: mise activate, ~/.cargo/bin on
@@ -220,9 +220,9 @@ if [[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]]; then
 	export PATH="$HOME/.cargo/bin:$PATH"
 fi
 
-# Helix runtime files (built-from-source install lives in ~/src/helix).
+# Helix runtime files (built-from-source install lives in ~/projects/helix).
 # `hx` uses HELIX_RUNTIME first, then falls back to compiled-in defaults.
-export HELIX_RUNTIME="$HOME/src/helix/runtime"
+export HELIX_RUNTIME="$HOME/projects/helix/runtime"
 
 # fzf - Deep Nord Aurora colors and ergonomic defaults. These exports
 # replace any previous FZF_* values, so the last block to define them wins.

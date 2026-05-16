@@ -38,7 +38,7 @@ helix-files/
 2. Installs the brew formulas (`zellij broot mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq`) and the Ghostty cask.
 3. Symlinks `~/.config/{helix,zellij,broot,mise,ghostty,oh-my-posh,zsh-helix-mode}` into the matching repo dirs.
 4. Runs `mise install` (auto-trusting `mise/config.toml`) to fetch runtimes, LSPs, and formatters.
-5. Builds **Helix nightly from source** at `~/src/helix` via `cargo install --path helix-term --locked`.
+5. Builds **Helix nightly from source** at `~/projects/helix` via `cargo install --path helix-term --locked`.
 6. Manages a single block in `~/.zshrc` (between `# >>> helix-files managed block >>>` markers) that:
    - Activates `mise` (guarded against double-init).
    - Prepends `~/.cargo/bin` to `PATH`, exports `HELIX_RUNTIME`.
@@ -77,9 +77,9 @@ ln -s "$PWD/zsh-helix-mode" ~/.config/zsh-helix-mode
 Helix is intentionally _not_ a brew dependency - `setup.sh` follows the official ["Building from source"](https://docs.helix-editor.com/building-from-source.html) instructions:
 
 ```sh
-git clone https://github.com/helix-editor/helix ~/src/helix
-cargo install --path ~/src/helix/helix-term --locked
-export HELIX_RUNTIME=~/src/helix/runtime    # added to .zshrc managed block
+git clone https://github.com/helix-editor/helix ~/projects/helix
+cargo install --path ~/projects/helix/helix-term --locked
+export HELIX_RUNTIME=~/projects/helix/runtime    # added to .zshrc managed block
 ```
 
 `hx` lands in `~/.cargo/bin/`; `HELIX_RUNTIME` points at the matching `runtime/` for grammars and themes. Cargo comes from the rust toolchain that mise installs.
@@ -91,10 +91,10 @@ Stock upstream Helix lacks two features this repo uses:
 - **[PR #13896](https://github.com/helix-editor/helix/pull/13896)** - Unix-socket command listener. The broot file picker dispatches `:open <path>` over this socket via `scripts/helix-send.sh` so picking a file routes into the existing helix instead of spawning a fresh one.
 - **[PR #13963](https://github.com/helix-editor/helix/pull/13963)** - auto-reload on external file changes. The `[editor.auto-reload]` block in `helix/config.toml` configures it. A local follow-up commit on top makes periodic reloads silent (statusline message instead of a modal prompt).
 
-Both patches live on the `local-patches` branch of the fork at [github.com/kodyberry23/helix](https://github.com/kodyberry23/helix). `setup.sh` clones that branch directly into `~/src/helix` and adds `upstream` as a second remote pointing at `helix-editor/helix`, so syncing from upstream is a one-liner:
+Both patches live on the `local-patches` branch of the fork at [github.com/kodyberry23/helix](https://github.com/kodyberry23/helix). `setup.sh` clones that branch directly into `~/projects/helix` and adds `upstream` as a second remote pointing at `helix-editor/helix`, so syncing from upstream is a one-liner:
 
 ```sh
-cd ~/src/helix
+cd ~/projects/helix
 git fetch upstream master
 git rebase upstream/master
 git push --force-with-lease origin local-patches
@@ -130,7 +130,7 @@ Order: brew packages → mise tools → Helix nightly (rebuilt only if HEAD move
 
 `jdtls`, `erlang_ls`, and `marksman` aren't in the mise registry, so they're brewed by `setup.sh`. Per-language entries in `helix/languages.toml` rely on Helix's bundled defaults for the primary LSP and only override when adding a formatter, tweaking inlay hints, or defining a new language (e.g. `text` for `.txt` / `.log` files).
 
-Buffer auto-reload on external disk changes is handled inside helix via the `[editor.auto-reload]` block in `helix/config.toml`, courtesy of [helix-editor/helix#13963](https://github.com/helix-editor/helix/pull/13963) cherry-picked onto the local `local-patches` branch in `~/src/helix`, with a follow-up commit that makes periodic reloads silent (statusline message, no prompt). See `helix/config.toml` for the configurable knobs.
+Buffer auto-reload on external disk changes is handled inside helix via the `[editor.auto-reload]` block in `helix/config.toml`, courtesy of [helix-editor/helix#13963](https://github.com/helix-editor/helix/pull/13963) cherry-picked onto the local `local-patches` branch in `~/projects/helix`, with a follow-up commit that makes periodic reloads silent (statusline message, no prompt). See `helix/config.toml` for the configurable knobs.
 
 Verify: `hx --health rust` (repeat per language).
 

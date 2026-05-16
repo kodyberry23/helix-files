@@ -39,7 +39,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/lib/common.sh"
 
 REPO_ROOT="${HELIX_FILES:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-HELIX_SRC="$HOME/src/helix"
+HELIX_SRC="$HOME/projects/helix"
 ZHM_DIR="$REPO_ROOT/zsh-helix-mode"
 
 usage() {
