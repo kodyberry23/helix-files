@@ -94,12 +94,18 @@ newline = "⏎"
 "H" = "goto_line_start"
 "L" = "goto_line_end"
 
-# EXPERIMENT: toggle the sidebar pane by close/spawn instead of
-# toggle-fullscreen on the editor. See scripts/toggle-sidebar.sh for
-# the diagnostic rationale. If this kills the 50%->18% flicker, the
-# culprit was helix's repaint under fullscreen restoration; if not,
-# zellij's pane sizing itself is involved.
-"space"."e" = ":sh $HOME/projects/helix-files/scripts/toggle-sidebar.sh"
+# Toggle the broot sidebar by fullscreening the editor pane. zellij
+# hides the sidebar (and any other non-focused panes) while the editor
+# is fullscreen; un-toggle restores the original layout including the
+# sidebar's 18% width. broot keeps its cursor/expansion state between
+# toggles because the underlying pane stays alive - it's just hidden.
+#
+# Trade-off: a brief flicker on un-toggle as helix receives SIGWINCH
+# and reflows from 100% to 82% width. Inherent to terminal apps.
+# Close/respawn would avoid that flicker but `zellij action new-pane`
+# has no --size for tiled panes (only floating), so the new sidebar
+# would land at 50%, ignoring the layout's 18%.
+"space"."e" = ":sh zellij action toggle-fullscreen"
 
 # Reveal current buffer in the broot sidebar pane. broot is started with
 # --listen on a per-session socket (see zellij/layouts/default.kdl); the
