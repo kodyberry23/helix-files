@@ -505,6 +505,35 @@ install_helix_nightly() {
 	ok "hx installed to ~/.cargo/bin (HELIX_RUNTIME=$HELIX_SRC/runtime via .zshrc)"
 }
 
+# We build helix from source (see install_helix_nightly); mise should never
+# manage it. But if `mise install helix` was ever run on this machine (or
+# the shim was created by an earlier mise version), `~/.local/share/mise/
+# shims/hx` lingers and can shadow the cargo binary when PATH ordering
+# changes (e.g. a new shell that hasn't sourced .zshrc yet, where mise
+# shims land before ~/.cargo/bin). Remove the tool + the shim outright.
+prune_mise_helix() {
+	info "Pruning mise-managed helix (we build from source)"
+
+	if $DRY_RUN; then
+		would "mise uninstall helix (if installed)"
+		would "rm ~/.local/share/mise/shims/hx (if present)"
+		return
+	fi
+
+	if has_cmd mise && mise ls 2>/dev/null | grep -qi '^helix\b'; then
+		info "  mise has helix installed; uninstalling"
+		mise uninstall helix || warn "  mise uninstall helix failed"
+	fi
+
+	local shim="$HOME/.local/share/mise/shims/hx"
+	if [[ -L $shim || -f $shim ]]; then
+		rm -f "$shim"
+		ok "  removed stale mise shim $shim"
+	else
+		ok "  no mise hx shim present"
+	fi
+}
+
 main() {
 	# --only-zshrc: re-stamp the managed block and exit. Invoked by
 	# update.sh so a `git pull` of this repo also refreshes the live
@@ -522,6 +551,7 @@ main() {
 
 	mise_install
 	install_helix_nightly
+	prune_mise_helix
 	clone_zsh_helix_mode
 	setup_managed_block "$ZSHRC" zshrc_block
 
