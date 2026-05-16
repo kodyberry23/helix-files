@@ -10,9 +10,11 @@
 #   2. Brew packages we installed: brew upgrade (with auto-update disabled)
 #   3. mise-managed tools: mise upgrade (runtimes, LSPs, formatters)
 #   4. Helix nightly: git pull + cargo install --path helix-term --locked.
-#      Detects a `local-patches` branch (PR #13896 socket + PR #13963
-#      auto-reload + local follow-ups) and won't try to fast-forward it -
-#      just fetches origin/master and reports if a rebase is available.
+#      Default checkout is the `local-patches` branch on the kodyberry23/helix
+#      fork (PR #13896 socket + PR #13963 auto-reload + local follow-ups).
+#      Pulls fork updates, fetches `upstream/master`, and reports drift
+#      so the user can rebase deliberately. Skips rebuild when HEAD didn't
+#      move.
 #   5. zsh-helix-mode: git pull --ff-only
 #   6. ~/.zshrc managed block: re-stamp via `setup.sh --only-zshrc` so
 #      drift between setup.sh's zshrc_block heredoc and the deployed
@@ -139,9 +141,10 @@ update_brew_packages() {
 
 # ─── 4. Helix nightly ─────────────────────────────────────────────────────
 # Handles two checkout modes:
+#   - local-patches (default, fork-tracked): fast-forward from origin
+#     (the kodyberry23/helix fork) and report if upstream master has
+#     drifted, so the user can rebase deliberately
 #   - master (vanilla): fast-forward + rebuild if HEAD moved
-#   - local-patches: don't pull (would conflict with the cherry-picked PRs);
-#                    fetch origin/master and report if a rebase is offered
 update_helix() {
 	info "Helix nightly"
 	if [[ ! -d "$HELIX_SRC/.git" ]]; then
@@ -150,7 +153,7 @@ update_helix() {
 	fi
 
 	if $DRY_RUN; then
-		would "fetch origin master; pull or report depending on branch"
+		would "fetch origin + upstream; pull local-patches or master depending on branch"
 		would "cargo install --path $HELIX_SRC/helix-term --locked (only if HEAD moved)"
 		return
 	fi
@@ -165,24 +168,41 @@ update_helix() {
 		return
 	fi
 
-	git -C "$HELIX_SRC" fetch origin master >/dev/null 2>&1 || true
+	# `origin` is the kodyberry23/helix fork (set up by setup.sh); `upstream`
+	# is helix-editor/helix. Fetch both so we can both pull fork changes and
+	# compare against upstream master for rebase prompts.
+	git -C "$HELIX_SRC" fetch origin >/dev/null 2>&1 || true
+	git -C "$HELIX_SRC" fetch upstream master >/dev/null 2>&1 || true
 	local branch
 	branch=$(git -C "$HELIX_SRC" branch --show-current)
 
-	# local-patches branch: cherry-picks of PR #13896 (socket) + PR #13963
-	# (auto-reload) + project-local follow-ups. Don't fast-forward; just
-	# report upstream movement so the user can rebase deliberately.
+	# local-patches: tracked on the fork. Pull --ff-only from origin (the
+	# fork) so changes pushed from another machine land here; then check
+	# upstream/master for drift and report if a rebase is offered.
 	if [[ "$branch" == "local-patches" ]]; then
-		local behind
-		behind=$(git -C "$HELIX_SRC" rev-list --count HEAD..origin/master 2>/dev/null || echo 0)
-		if [[ ${behind:-0} -gt 0 ]]; then
-			warn "on 'local-patches' branch; origin/master has $behind new commit(s)"
-			warn "  rebase manually:  cd $HELIX_SRC && git rebase origin/master"
+		local before_head
+		before_head=$(git -C "$HELIX_SRC" rev-parse HEAD)
+		if git -C "$HELIX_SRC" pull --ff-only origin local-patches >/dev/null 2>&1; then
+			:
 		else
-			ok "on 'local-patches' branch; up to date with origin/master"
+			warn "fast-forward of local-patches from origin failed (diverged?); skipping pull"
 		fi
-		# Rebuild unconditionally - the user may have applied a local
-		# follow-up commit since the last `cargo install`.
+
+		local behind
+		behind=$(git -C "$HELIX_SRC" rev-list --count HEAD..upstream/master 2>/dev/null || echo 0)
+		if [[ ${behind:-0} -gt 0 ]]; then
+			warn "upstream/master has $behind new commit(s) since local-patches diverged"
+			warn "  rebase manually:  cd $HELIX_SRC && git rebase upstream/master"
+			warn "  then push:        git push --force-with-lease origin local-patches"
+		fi
+
+		local after_head
+		after_head=$(git -C "$HELIX_SRC" rev-parse HEAD)
+		if [[ "$before_head" == "$after_head" ]] && has_cmd hx; then
+			ok "already built at $(git -C "$HELIX_SRC" rev-parse --short HEAD)"
+			return
+		fi
+
 		info "  rebuilding helix-term"
 		cargo install --path "$HELIX_SRC/helix-term" --locked --force
 		ok "rebuilt ($(git -C "$HELIX_SRC" rev-parse --short HEAD))"

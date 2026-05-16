@@ -91,18 +91,17 @@ Stock upstream Helix lacks two features this repo uses:
 - **[PR #13896](https://github.com/helix-editor/helix/pull/13896)** - Unix-socket command listener. The broot file picker dispatches `:open <path>` over this socket via `scripts/helix-send.sh` so picking a file routes into the existing helix instead of spawning a fresh one.
 - **[PR #13963](https://github.com/helix-editor/helix/pull/13963)** - auto-reload on external file changes. The `[editor.auto-reload]` block in `helix/config.toml` configures it. A local follow-up commit on top makes periodic reloads silent (statusline message instead of a modal prompt).
 
-To apply both on a `local-patches` branch:
+Both patches live on the `local-patches` branch of the fork at [github.com/kodyberry23/helix](https://github.com/kodyberry23/helix). `setup.sh` clones that branch directly into `~/src/helix` and adds `upstream` as a second remote pointing at `helix-editor/helix`, so syncing from upstream is a one-liner:
 
 ```sh
 cd ~/src/helix
-git checkout -b local-patches
-git fetch origin refs/pull/13896/head:pr-13896 && git cherry-pick pr-13896
-git fetch origin refs/pull/13963/head:pr-13963 && git cherry-pick <pr-base>..pr-13963
-# Apply the silent-reload tweak manually if you want it; see auto_reload.rs.
+git fetch upstream master
+git rebase upstream/master
+git push --force-with-lease origin local-patches
 cargo install --path helix-term --locked --force
 ```
 
-`update.sh` detects the `local-patches` branch and skips fast-forward updates that would conflict; rebase manually onto fresh `origin/master` when you want upstream changes.
+`update.sh` pulls fork updates on the `local-patches` branch (so changes pushed from another machine land here) and reports whenever `upstream/master` drifts ahead, so you rebase deliberately.
 
 ## Updating
 

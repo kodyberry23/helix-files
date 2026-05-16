@@ -22,9 +22,16 @@ ZSHRC="$HOME/.zshrc"
 # coexist with the user's other dotfiles repo without clobbering it.
 MARKER_START="# >>> helix-files managed block >>>"
 MARKER_END="# <<< helix-files managed block <<<"
-# Helix is built from source per https://docs.helix-editor.com/building-from-source.html
+# Helix is built from source per https://docs.helix-editor.com/building-from-source.html.
+# The fork carries a `local-patches` branch with PR #13896 (unix-socket
+# command dispatch, consumed by scripts/helix-send.sh) and PR #13963
+# (auto-reload, configured by [editor.auto-reload] in helix/config.toml),
+# plus a small "silent reload" local commit on top. Upstream is added as
+# `upstream` so rebasing local-patches onto fresh master stays a one-liner.
 HELIX_SRC="$HOME/src/helix"
-HELIX_REPO="https://github.com/helix-editor/helix"
+HELIX_REPO="https://github.com/kodyberry23/helix"
+HELIX_UPSTREAM="https://github.com/helix-editor/helix"
+HELIX_BRANCH="local-patches"
 
 usage() {
 	cat <<'USAGE'
@@ -38,7 +45,9 @@ What it does:
   3. Symlinks ~/.config/{helix,zellij,broot,mise,ghostty,oh-my-posh,zsh-helix-mode}
      -> <repo>/<name>
   4. Runs `mise install` to fetch runtimes / LSPs / formatters
-  5. Builds Helix nightly from source (~/src/helix) via cargo
+  5. Builds Helix from source at ~/src/helix - clones the kodyberry23/helix
+     fork's `local-patches` branch (PR #13896 socket + PR #13963 auto-reload
+     + a silent-reload tweak), runs `cargo install --path helix-term`
   6. Adds a managed block to ~/.zshrc with: mise activate, ~/.cargo/bin on
      PATH, HELIX_RUNTIME, Nord Aurora FZF colors + key bindings, zoxide
      init, oh-my-posh init, the `hx()` wrapper that stamps a stable pane
@@ -451,15 +460,16 @@ clone_zsh_helix_mode() {
 }
 
 install_helix_nightly() {
-	info "Helix (nightly from source at $HELIX_SRC)"
+	info "Helix (nightly from $HELIX_REPO, branch $HELIX_BRANCH)"
 
 	# In dry-run, mise hasn't actually installed rust yet, so cargo may not
 	# exist on a fresh machine. Print intent and return.
 	if $DRY_RUN; then
 		if [[ -d "$HELIX_SRC/.git" ]]; then
-			would "git -C $HELIX_SRC pull --ff-only (skipped on first install)"
+			would "ensure $HELIX_SRC is on $HELIX_BRANCH"
 		else
-			would "git clone $HELIX_REPO $HELIX_SRC"
+			would "git clone --branch $HELIX_BRANCH $HELIX_REPO $HELIX_SRC"
+			would "git remote add upstream $HELIX_UPSTREAM"
 		fi
 		would "cargo install --path $HELIX_SRC/helix-term --locked"
 		return
@@ -476,10 +486,18 @@ install_helix_nightly() {
 
 	if [[ -d "$HELIX_SRC/.git" ]]; then
 		ok "$HELIX_SRC already cloned"
+		# Make sure the working tree is on local-patches so the build below
+		# actually compiles the patched code. No-op when already on it.
+		git -C "$HELIX_SRC" checkout "$HELIX_BRANCH" >/dev/null 2>&1 \
+			|| warn "  could not checkout $HELIX_BRANCH in $HELIX_SRC (working tree may be dirty)"
 	else
 		mkdir -p "$(dirname "$HELIX_SRC")"
-		git clone "$HELIX_REPO" "$HELIX_SRC"
-		ok "cloned"
+		# Clone the fork directly on the patched branch so we never build
+		# unpatched master. `upstream` is added so the user can rebase
+		# local-patches onto fresh upstream master without re-adding remotes.
+		git clone --branch "$HELIX_BRANCH" "$HELIX_REPO" "$HELIX_SRC"
+		git -C "$HELIX_SRC" remote add upstream "$HELIX_UPSTREAM"
+		ok "cloned $HELIX_BRANCH from fork; upstream remote added"
 	fi
 
 	info "  building helix-term (this can take a few minutes on a fresh build)"
