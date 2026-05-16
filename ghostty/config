@@ -89,7 +89,8 @@ keybind = cmd+opt+left=unbind
 keybind = cmd+opt+right=unbind
 
 #Shaders
-custom-shader = shaders/cursor_warp.glsl
+# Animated cursor "warp" shader - disabled. Re-enable by uncommenting.
+# custom-shader = shaders/cursor_warp.glsl
 macos-icon = custom
 macos-custom-icon = ~/.config/ghostty/ghostty-black.icns
 
