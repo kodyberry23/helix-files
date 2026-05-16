@@ -15,6 +15,13 @@ set -euo pipefail
 
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 
+# Per-session socket - must match launch-editor.sh's path derivation, or
+# we'll dispatch into the wrong session's helix when multiple sessions
+# are alive. Both scripts compute the same path from $ZELLIJ_SESSION_NAME.
+session=${ZELLIJ_SESSION_NAME:-default}
+session=${session//[^A-Za-z0-9_-]/_}
+export HELIX_SOCKET_PATH="${XDG_RUNTIME_DIR:-/tmp}/helix/${session}.sock"
+
 mode=${1:-}
 target=${2:-}
 

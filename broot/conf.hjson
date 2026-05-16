@@ -9,9 +9,9 @@
 # Documentation: https://dystroy.org/broot
 ###############################################################
 
-# `g` shows the git status column (M / A / D / etc). `h` would also show
-# hidden files - left off so the tree stays focused on project files.
-default_flags: g
+# `g` shows the git status column (M / A / D / etc). `h` shows hidden
+# files (dotfiles like .gitignore, .env, etc).
+default_flags: gh
 
 # Triangle marker on the selected line. With a narrow sidebar this is
 # clearer than relying on background color alone.
@@ -46,6 +46,15 @@ verbs: [
         key: k
         execution: ":line_up"
     }
+    // Vim-style parent-dir navigation. `:focus ..` re-roots the tree to
+    // the parent of the current root, so the file you came from stays
+    // selected at its new (shallower) location. Distinct from `:back`
+    // (which would only undo the last in-broot navigation).
+    {
+        invocation: parent_dir
+        key: h
+        execution: ":focus ../"
+    }
     // Verb knobs that matter here:
     //   - `~` is expanded by broot's path::untilde(); `$VAR` is NOT - shell
     //     expansion only happens when leave_broot: true (broot exits via
@@ -76,6 +85,24 @@ verbs: [
         leave_broot: false
         switch_terminal: false
         refresh_after: false
+    }
+    // Make directory. broot's built-in `:mkdir` already exists (with a
+    // `:md` shortcut); declaring it here makes the long form discoverable
+    // alongside our other verbs and serves as the documented invocation
+    // for this config.
+    {
+        invocation: "mkdir {subpath}"
+        execution: ":mkdir {subpath}"
+    }
+    // Make file. broot has no internal touch verb, so shell out. {subpath}
+    // is resolved against the currently selected directory (or, for a
+    // selected file, its parent). refresh_after rescans so the new file
+    // appears in the tree immediately.
+    {
+        invocation: "touch {subpath}"
+        external: "touch {directory}/{subpath}"
+        leave_broot: false
+        refresh_after: true
     }
 ]
 

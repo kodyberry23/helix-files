@@ -13,19 +13,6 @@ auto-format = false
 # left modified will never get reload-prompted for external changes.
 auto-save = { focus-lost = true, after-delay = { enable = true, timeout = 1000 } }
 
-# Auto-reload externally-modified files. Patched in via helix-editor/helix
-# PR #13963 with a local tweak that silences the periodic reload (see
-# README for build provenance).
-# - focus-gained: on terminal refocus, silently reload any open buffer
-#   whose mtime advanced.
-# - periodic.enable + interval: same check on a timer.
-# Unsaved buffers are filtered out before reload, so in-flight edits
-# can never be clobbered - they just stay invisible to the check until
-# you save (which is why the auto-save block above matters).
-[editor.auto-reload]
-focus-gained = true
-periodic.enable = true
-periodic.interval = 3000
 completion-trigger-len = 1
 true-color = true
 # Pin to pbcopy/pbpaste on macOS. Redundant with auto-detect today, but
@@ -37,6 +24,25 @@ clipboard-provider = "pasteboard"
 # against malicious local-config / language-server payloads in untrusted
 # repos. Safe enough when you only open projects you authored.
 insecure = true
+
+# Auto-reload externally-modified files. Patched in via helix-editor/helix
+# PR #13963 with a local tweak that silences the periodic reload (see
+# README for build provenance).
+# - focus-gained: on terminal refocus, silently reload any open buffer
+#   whose mtime advanced.
+# - periodic.enable + interval: same check on a timer.
+# Unsaved buffers are filtered out before reload, so in-flight edits
+# can never be clobbered - they just stay invisible to the check until
+# you save (which is why the auto-save block above matters).
+#
+# NOTE: this MUST come after every plain `[editor]` key (above) - once a
+# `[editor.<sub>]` table header opens, all subsequent unprefixed keys
+# belong to the sub-table, not to `[editor]`. Moving `insecure` etc.
+# below this line silently mis-scopes them and helix ignores the values.
+[editor.auto-reload]
+focus-gained = true
+periodic.enable = true
+periodic.interval = 3000
 
 [editor.gutters]
 # Default layout omits a trailing spacer, so the diff stripe sits flush
