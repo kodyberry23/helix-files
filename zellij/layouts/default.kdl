@@ -18,7 +18,7 @@
 // repo at $HOME/projects/helix-files.
 layout {
     pane split_direction="vertical" {
-        pane name="sidebar" size="18%" command="sh" {
+        pane name="sidebar" size="15%" command="sh" {
             args "-c" "exec $HOME/projects/helix-files/scripts/launch-sidebar.sh"
         }
         pane name="editor" focus=true command="sh" {

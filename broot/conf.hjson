@@ -9,9 +9,9 @@
 # Documentation: https://dystroy.org/broot
 ###############################################################
 
-# `g` shows the git status column (M / A / D / etc). `h` shows hidden
-# files (dotfiles like .gitignore, .env, etc).
-default_flags: gh
+# `g` shows the git status column (M / A / D / etc). Hidden files are
+# OFF by default; toggle them in-session with `.` (see the verb below).
+default_flags: g
 
 # Triangle marker on the selected line. With a narrow sidebar this is
 # clearer than relying on background color alone.
@@ -46,14 +46,24 @@ verbs: [
         key: k
         execution: ":line_up"
     }
-    // Vim-style parent-dir navigation. `:focus ..` re-roots the tree to
-    // the parent of the current root, so the file you came from stays
-    // selected at its new (shallower) location. Distinct from `:back`
-    // (which would only undo the last in-broot navigation).
+    // Vim-style parent-dir navigation. Uses `:back` (not `:focus ../`)
+    // because :back undoes the last in-broot navigation, which puts the
+    // cursor back on the child entry you originally descended into. With
+    // :focus ../ the parent re-roots fresh and the cursor starts at the
+    // top. Edge case: if you opened broot deep in the tree (no descent
+    // history), :back is a no-op; use `:cd ..` typed explicitly instead.
     {
         invocation: parent_dir
         key: h
-        execution: ":focus ../"
+        execution: ":back"
+    }
+    // Toggle hidden-file visibility. broot's `:toggle_hidden` flips the
+    // -h/--hidden flag in-session; default off (see `default_flags: g`
+    // above), press `.` to reveal dotfiles when needed.
+    {
+        invocation: toggle_hidden
+        key: "."
+        execution: ":toggle_hidden"
     }
     // Verb knobs that matter here:
     //   - `~` is expanded by broot's path::untilde(); `$VAR` is NOT - shell
@@ -85,14 +95,6 @@ verbs: [
         leave_broot: false
         switch_terminal: false
         refresh_after: false
-    }
-    // Make directory. broot's built-in `:mkdir` already exists (with a
-    // `:md` shortcut); declaring it here makes the long form discoverable
-    // alongside our other verbs and serves as the documented invocation
-    // for this config.
-    {
-        invocation: "mkdir {subpath}"
-        execution: ":mkdir {subpath}"
     }
     // Make file. broot has no internal touch verb, so shell out. {subpath}
     // is resolved against the currently selected directory (or, for a
