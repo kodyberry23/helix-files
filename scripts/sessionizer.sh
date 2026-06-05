@@ -2,7 +2,7 @@
 
 # zellij + helix sessionizer - create/attach a zellij session named after
 # a chosen directory. New sessions open the default layout at
-# zellij/layouts/default.kdl (broot sidebar + persistent helix editor).
+# zellij/layouts/default.kdl (treelix sidebar + persistent helix editor).
 # Usage: sessionizer.sh [path]
 #   - If a path arg is provided, use it.
 #   - Otherwise, pick from PROJECT_ROOTS via fzf (combined with zoxide frecency).
@@ -76,7 +76,7 @@ session_name=$(basename "$selected" | tr ' .:' '___')
 # ─── Attach or create ─────────────────────────────────────────────────────
 # `zellij attach -c` attaches if the session exists, creates it otherwise.
 # When created fresh, default_layout (set in config.kdl to "default")
-# spawns the broot sidebar + helix editor pair.
+# spawns the treelix sidebar + helix editor pair.
 #
 # Inside zellij: zellij has no in-place "switch-session" - refuse with a
 # hint so the user detaches first. ZELLIJ env var is set inside sessions.

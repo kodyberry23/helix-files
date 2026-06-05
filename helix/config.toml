@@ -100,23 +100,23 @@ newline = "⏎"
 "H" = "goto_line_start"
 "L" = "goto_line_end"
 
-# Toggle the broot sidebar by fullscreening the editor pane. zellij
+# Toggle the treelix sidebar by fullscreening the editor pane. zellij
 # hides the sidebar (and any other non-focused panes) while the editor
 # is fullscreen; un-toggle restores the original layout including the
-# sidebar's 18% width. broot keeps its cursor/expansion state between
+# sidebar's width. treelix keeps its cursor/expansion state between
 # toggles because the underlying pane stays alive - it's just hidden.
 #
 # Trade-off: a brief flicker on un-toggle as helix receives SIGWINCH
 # and reflows from 100% to 82% width. Inherent to terminal apps.
 # Close/respawn would avoid that flicker but `zellij action new-pane`
 # has no --size for tiled panes (only floating), so the new sidebar
-# would land at 50%, ignoring the layout's 18%.
+# would land at 50%, ignoring the layout's width.
 "space"."e" = ":sh zellij action toggle-fullscreen"
 
-# Reveal current buffer in the broot sidebar pane. broot is started with
-# --listen on a per-session socket (see zellij/layouts/default.kdl); the
-# dispatcher sends a `:focus <path>` command over that socket so broot
-# scrolls/expands to the current file without stealing focus from helix.
+# Reveal current buffer in the treelix sidebar pane. treelix listens on a
+# per-session unix socket (see zellij/layouts/default.kdl); the dispatcher
+# runs `treelix reveal <path>` against that socket so treelix expands to and
+# selects the current file without stealing focus from helix.
 "A-r" = ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}'"
 
 [keys.insert]

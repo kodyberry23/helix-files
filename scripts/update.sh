@@ -15,6 +15,8 @@
 #      Pulls fork updates, fetches `upstream/master`, and reports drift
 #      so the user can rebase deliberately. Skips rebuild when HEAD didn't
 #      move.
+#   4b. treelix (sidebar file tree): git pull + cargo install --path, rebuilt
+#      only when HEAD moved.
 #   5. zsh-helix-mode: git pull --ff-only
 #   6. ~/.zshrc managed block: re-stamp via `setup.sh --only-zshrc` so
 #      drift between setup.sh's zshrc_block heredoc and the deployed
@@ -40,6 +42,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 REPO_ROOT="${HELIX_FILES:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 HELIX_SRC="$HOME/projects/helix"
+TREELIX_SRC="$HOME/projects/treelix"
 ZHM_DIR="$REPO_ROOT/zsh-helix-mode"
 
 usage() {
@@ -231,6 +234,40 @@ update_helix() {
 	ok "rebuilt"
 }
 
+# ─── 4b. treelix (sidebar file tree) ──────────────────────────────────────
+# Pull the treelix checkout and rebuild only if HEAD moved.
+update_treelix() {
+	info "treelix"
+	if [[ ! -d "$TREELIX_SRC/.git" ]]; then
+		warn "$TREELIX_SRC not cloned yet - run setup.sh first; skipping"
+		return
+	fi
+	if $DRY_RUN; then
+		would "git -C $TREELIX_SRC pull --ff-only"
+		would "cargo install --path $TREELIX_SRC --locked (only if HEAD moved)"
+		return
+	fi
+	if ! ensure_cargo_on_path; then
+		warn "cargo not on PATH; skipping treelix"
+		return
+	fi
+	if [[ -n "$(git -C "$TREELIX_SRC" status --porcelain)" ]]; then
+		warn "$TREELIX_SRC has uncommitted changes; skipping pull (commit or stash first)"
+		return
+	fi
+	local before after
+	before=$(git -C "$TREELIX_SRC" rev-parse HEAD)
+	git -C "$TREELIX_SRC" pull --ff-only
+	after=$(git -C "$TREELIX_SRC" rev-parse HEAD)
+	if [[ "$before" == "$after" ]]; then
+		ok "already up to date ($(git -C "$TREELIX_SRC" rev-parse --short HEAD))"
+		return
+	fi
+	info "  rebuilding treelix ($before -> $after)"
+	cargo install --path "$TREELIX_SRC" --locked --force
+	ok "rebuilt"
+}
+
 # ─── 3. mise-managed tools ────────────────────────────────────────────────
 update_mise_tools() {
 	info "mise tools"
@@ -281,6 +318,7 @@ main() {
 	update_brew_packages
 	update_mise_tools
 	update_helix
+	update_treelix
 	update_zsh_helix_mode
 	refresh_zshrc_managed_block
 

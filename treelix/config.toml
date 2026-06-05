@@ -1,0 +1,16 @@
+# treelix sidebar config. Symlinked to ~/.config/treelix by scripts/setup.sh.
+#
+# treelix is the file-tree sidebar. It runs in the named
+# `sidebar` zellij pane via scripts/launch-sidebar.sh, opens files in the
+# running helix over its command socket, and listens on its own socket so
+# helix's `A-r` can reveal the current buffer (scripts/dispatch-to-sidebar.sh).
+
+# Deep Nord Aurora, mirroring the rest of the bundle. Use "helix" to instead
+# derive colors from the active helix theme at runtime.
+theme = "nord-aurora"
+
+# Nerd Font glyphs (Ghostty ships a Nerd Font).
+icons = true
+
+show_hidden = false
+show_ignored = false

@@ -12,21 +12,22 @@ helix-files/
 │   ├── config.toml             # editor settings, keymaps, statusline, A-r reveal
 │   ├── languages.toml          # per-language LSP + formatter overrides
 │   └── themes/nord-aurora.toml # custom Deep Nord Aurora theme
-├── broot/
-│   └── conf.hjson              # sidebar verbs: Enter → :open, Ctrl-V → :vsplit
+├── treelix/
+│   ├── config.toml             # sidebar config (theme = nord-aurora, icons)
+│   └── themes/nord-aurora.toml # treelix Deep Nord Aurora theme
 ├── mise/
 │   └── config.toml             # global mise tools: runtimes, LSPs, formatters
 ├── oh-my-posh/                 # prompt themes; nord-aurora.omp.json is the default
 ├── scripts/
 │   ├── setup.sh                # bootstrap: install tools, symlink, manage .zshrc block
-│   ├── update.sh               # update brew, mise, Helix nightly, zsh-helix-mode
+│   ├── update.sh               # update brew, mise, Helix nightly, treelix, zsh-helix-mode
 │   ├── sessionizer.sh          # zellij project session picker (alias: `hs`)
-│   ├── dispatch-to-editor.sh   # broot → editor pane (route :open / :vsplit)
-│   ├── dispatch-to-sidebar.sh  # helix A-r → broot :focus <buffer>
+│   ├── dispatch-to-editor.sh   # treelix → editor pane (route :open / :vsplit)
+│   ├── dispatch-to-sidebar.sh  # helix A-r → treelix reveal <buffer>
 │   └── lib/common.sh           # shared shell helpers + brew lists
 ├── zellij/
 │   ├── config.kdl              # multiplexer config (theme inlined, keybinds, layout)
-│   └── layouts/default.kdl     # 2-pane sidebar (broot) + editor (helix)
+│   └── layouts/default.kdl     # 2-pane sidebar (treelix) + editor (helix)
 └── zsh-helix-mode/             # upstream plugin: Helix-style modal editing in zsh
 ```
 
@@ -35,10 +36,11 @@ helix-files/
 `scripts/setup.sh` is the single entry point. It:
 
 1. Installs Homebrew if missing.
-2. Installs the brew formulas (`zellij broot mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq`) and the Ghostty cask.
-3. Symlinks `~/.config/{helix,zellij,broot,mise,ghostty,oh-my-posh,zsh-helix-mode}` into the matching repo dirs.
+2. Installs the brew formulas (`zellij mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq`) and the Ghostty cask.
+3. Symlinks `~/.config/{helix,zellij,treelix,mise,ghostty,oh-my-posh,zsh-helix-mode}` into the matching repo dirs.
 4. Runs `mise install` (auto-trusting `mise/config.toml`) to fetch runtimes, LSPs, and formatters.
 5. Builds **Helix nightly from source** at `~/projects/helix` via `cargo install --path helix-term --locked`.
+5b. Builds **treelix** (the sidebar file tree) from source at `~/projects/treelix` via `cargo install --path` → `~/.cargo/bin/treelix`.
 6. Manages a single block in `~/.zshrc` (between `# >>> helix-files managed block >>>` markers) that:
    - Activates `mise` (guarded against double-init).
    - Prepends `~/.cargo/bin` to `PATH`, exports `HELIX_RUNTIME`.
@@ -65,7 +67,7 @@ If you'd rather skip the script and symlink manually:
 ```sh
 ln -s "$PWD/helix"          ~/.config/helix
 ln -s "$PWD/zellij"         ~/.config/zellij
-ln -s "$PWD/broot"          ~/.config/broot
+ln -s "$PWD/treelix"        ~/.config/treelix
 ln -s "$PWD/mise"           ~/.config/mise
 ln -s "$PWD/ghostty"        ~/.config/ghostty
 ln -s "$PWD/oh-my-posh"     ~/.config/oh-my-posh
@@ -88,7 +90,7 @@ export HELIX_RUNTIME=~/projects/helix/runtime    # added to .zshrc managed block
 
 Stock upstream Helix lacks two features this repo uses:
 
-- **[PR #13896](https://github.com/helix-editor/helix/pull/13896)** - Unix-socket command listener. The broot file picker dispatches `:open <path>` over this socket via `scripts/helix-send.sh` so picking a file routes into the existing helix instead of spawning a fresh one.
+- **[PR #13896](https://github.com/helix-editor/helix/pull/13896)** - Unix-socket command listener. The treelix sidebar dispatches `:open <path>` over this socket via `scripts/helix-send.sh` so picking a file routes into the existing helix instead of spawning a fresh one.
 - **[PR #13963](https://github.com/helix-editor/helix/pull/13963)** - auto-reload on external file changes. The `[editor.auto-reload]` block in `helix/config.toml` configures it. A local follow-up commit on top makes periodic reloads silent (statusline message instead of a modal prompt).
 
 Both patches live on the `local-patches` branch of the fork at [github.com/kodyberry23/helix](https://github.com/kodyberry23/helix). `setup.sh` clones that branch directly into `~/projects/helix` and adds `upstream` as a second remote pointing at `helix-editor/helix`, so syncing from upstream is a one-liner:
@@ -141,7 +143,7 @@ Custom keys defined in `helix/config.toml` (on top of Helix's defaults):
 | Key | Action |
 |---|---|
 | `space w` / `space q` / `space x` | `:w` / `:q` / `:x` (save / quit / save-quit) |
-| `A-r` | reveal current buffer in the broot sidebar pane |
+| `A-r` | reveal current buffer in the treelix sidebar pane |
 | `H` / `L` | goto-line-start / goto-line-end |
 | `C-d` / `C-u` | half-page down / up, then center cursor |
 | `jk` (insert mode) | escape to normal mode |
@@ -151,19 +153,21 @@ Plus:
 - `insecure = true` skips Helix's "trust this workspace" prompt for every new project. Removes the seatbelt for `.helix/config.toml` payloads in untrusted repos - fine if you only open projects you authored.
 - `clipboard-provider = "pasteboard"` pins yank/paste to macOS pbcopy/pbpaste. Defensive: matches auto-detect today, but locks the choice if anything in the launch chain ever exports `$TMUX`.
 
-### broot sidebar + persistent editor
+### treelix sidebar + persistent editor
 
-The default zellij layout is a vertical split: `sidebar` (broot, 25% width, persistent) on the left, `editor` (helix, 75% width, persistent) on the right. Files routed sidebar → editor stay in helix's existing buffers/splits rather than spawning a fresh editor each time, which is the architectural fix for [zellij#4893](https://github.com/zellij-org/zellij/issues/4893) (alt-screen pollution on TUI exit): there is no TUI churn during normal use - helix and broot both stay in their alt-screens for the life of the session.
+The default zellij layout is a vertical split: `sidebar` ([treelix](https://github.com/kodyberry23/treelix), the nvim-tree-style file tree, ~15% width, persistent) on the left, `editor` (helix, ~85% width, persistent) on the right. Files routed sidebar → editor stay in helix's existing buffers/splits rather than spawning a fresh editor each time, which is the architectural fix for [zellij#4893](https://github.com/zellij-org/zellij/issues/4893) (alt-screen pollution on TUI exit): there is no TUI churn during normal use - helix and treelix both stay in their alt-screens for the life of the session.
 
-**Sidebar → editor (broot Enter / Ctrl-V):**
+treelix is a Rust rewrite of nvim-tree.lua: a live file tree with git status, file-watching auto-reload, file operations, and Deep Nord Aurora theming that matches the rest of the bundle. Press `g?` inside it for keybindings.
 
-- `Enter` on a file → `scripts/dispatch-to-editor.sh open <path>` sends `:open <path>` to the running helix over its Unix socket (helix-editor/helix PR #13896, in `local-patches`), then resolves the editor pane by its layout name and shifts zellij focus there so the cursor follows the file.
+**Sidebar → editor (treelix `<CR>` / `Ctrl-V`):**
+
+- `<CR>` on a file → treelix runs `scripts/dispatch-to-editor.sh open <path>`, which sends `:open <path>` to the running helix over its Unix socket (helix-editor/helix PR #13896, in `local-patches`), then resolves the editor pane by its layout name and shifts zellij focus there so the cursor follows the file.
 - `Ctrl-V` on a file → same dispatcher with `vsplit` → `:vsplit <path>` over the socket.
 - If the socket is missing (helix not running, or stock helix without PR #13896), the dispatcher falls back to `zellij action new-pane --direction right --name editor -- hx <path>`. `new-pane` focuses by default, so focus still lands correctly.
 
 **Editor → sidebar (helix `A-r`):**
 
-broot is started with `--listen $HOME/.cache/broot-${ZELLIJ_SESSION_NAME}.sock` per session. Helix's `A-r` binding shells out to `scripts/dispatch-to-sidebar.sh '%{buffer_name}'`, which calls `broot --send $sock --cmd ':focus <path>'`. broot scrolls/expands to the current buffer's location - helix retains the cursor.
+treelix listens on a per-session unix socket (`$TREELIX_SOCKET_PATH = $XDG_RUNTIME_DIR/treelix/<session>.sock`, set by `scripts/launch-sidebar.sh`). Helix's `A-r` binding shells out to `scripts/dispatch-to-sidebar.sh '%{buffer_name}'`, which runs `treelix reveal <path>` against that socket. treelix expands to and selects the current buffer's location - helix retains the cursor.
 
 **Why named panes:** zellij's pane `name` (set in `default.kdl` via `pane name="sidebar"`/`pane name="editor"`) is surfaced as the TITLE column by `list-panes` and is stable across resizes and tab moves. The dispatcher resolves by name → id once per invocation, avoiding the fragility of OSC-0 title scraping or `focus-next-pane` heuristics.
 
@@ -171,7 +175,7 @@ broot is started with `--listen $HOME/.cache/broot-${ZELLIJ_SESSION_NAME}.sock` 
 
 ## Sessionizer (`hs`)
 
-`scripts/sessionizer.sh` creates/attaches a zellij session named after a project directory. New sessions open the default layout - broot sidebar on the left, helix editor on the right.
+`scripts/sessionizer.sh` creates/attaches a zellij session named after a project directory. New sessions open the default layout - treelix sidebar on the left, helix editor on the right.
 
 ```sh
 hs              # fzf-pick a project from ~/projects + zoxide frecent dirs
@@ -182,7 +186,7 @@ How it works:
 
 - Picks from `fd -d 1 ~/projects` and zoxide's frecent dirs (deduped).
 - Session name = sanitized basename (alphanumerics + `-` / `_`).
-- New session: zellij applies the `default` layout, which starts broot in the named `sidebar` pane (with `--listen` on a per-session socket) and helix in the named `editor` pane.
+- New session: zellij applies the `default` layout, which starts treelix in the named `sidebar` pane (listening on a per-session reveal socket) and helix in the named `editor` pane.
 - Already inside zellij: refuses with a hint to detach first (Ctrl-q) - zellij has no in-place "switch session" action, and detach + re-attach is fast since sessions persist on disk (`session_serialization = true`).
 - Adds the path to zoxide for future frecency-ranking.
 
@@ -245,7 +249,7 @@ Where each tool's theme lives:
 - **Ghostty** - `ghostty/themes/nord-aurora` palette + `background-opacity = 0.92`, `background-blur = 20`. `shell-integration-features = no-cursor` so apps (zsh-helix-mode, helix) drive cursor shape.
 - **zellij** - inline `themes { deep-nord-aurora { … } }` block at the bottom of `zellij/config.kdl`. (Inline rather than `zellij/themes/*.kdl` because zellij 0.44.0 silently ignored external theme files - fixed in 0.44.1, but inlining is more robust against future regressions.)
 - **oh-my-posh** - `oh-my-posh/nord-aurora.omp.json`.
-- **broot** - uses broot's default skin (no theme override yet - `broot/skins/` would be the right place if/when one is wanted).
+- **treelix** - `treelix/themes/nord-aurora.toml` (`theme = "nord-aurora"` in `treelix/config.toml`). treelix owns its own theme; set `theme = "helix"` to instead derive colors from the active Helix theme.
 - **fzf** - `FZF_DEFAULT_OPTS` exports in the `.zshrc` managed block.
 
 Cursor colour is unified to **`#74BCD9`** (Frost-cyan) across Helix, ZHM, Ghostty, and oh-my-posh prompts; mode is shown by *shape* (block / bar / underline) rather than colour.
@@ -267,4 +271,4 @@ The `zsh-helix-mode/` directory is a clone of [Multirious/zsh-helix-mode](https:
 - macOS only. The zellij `copy_command` is `pbcopy`. Adjust for Linux.
 - The `.zshrc` block is designed to coexist with another managed block (e.g. an existing `dotfiles managed block`) - guards prevent double-init for mise / oh-my-posh / zsh-helix-mode.
 - Setup auto-trusts `mise/config.toml` (`mise trust`) - without this, `mise install` errors on first run with an unfamiliar config.
-- Sidebar broot must be running with `--listen` (the layout handles this) for helix's `A-r` reveal to work. If you spawn broot in a side pane manually, it won't accept `--send` commands.
+- The treelix sidebar must be running (the layout handles this) for helix's `A-r` reveal to work - it listens on the per-session socket that `scripts/dispatch-to-sidebar.sh` targets. If you spawn treelix in a side pane manually without `$TREELIX_SOCKET_PATH` set, `A-r` won't reach it.

@@ -31,7 +31,7 @@ ensure_cargo_on_path() {
 
 # Resolve $1 to an absolute path. Works for directories and for files that
 # don't exist yet (resolves the parent, then appends the basename). Used
-# by dispatch-to-editor / dispatch-to-sidebar so helix and broot interpret
+# by dispatch-to-editor / dispatch-to-sidebar so helix and treelix interpret
 # routed paths the same regardless of caller cwd.
 abs_path() {
 	if [[ -d $1 ]]; then
@@ -56,10 +56,10 @@ resolve_pane_id_by_name() {
 }
 
 # ─── Shared package lists (single source of truth) ────────────────────────
-# setup.sh installs these; update.sh upgrades them. Helix is intentionally
-# excluded - it's built from source in setup.sh. bat and tree feed the FZF
-# preview commands wired up in the .zshrc managed block.
-BREW_FORMULAS=(zellij broot mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq)
+# setup.sh installs these; update.sh upgrades them. Helix and treelix are
+# intentionally excluded - both are built from source in setup.sh. bat and
+# tree feed the FZF preview commands wired up in the .zshrc managed block.
+BREW_FORMULAS=(zellij mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq)
 BREW_CASKS=(ghostty)
 
 # ─── Dry-run flag handling ────────────────────────────────────────────────

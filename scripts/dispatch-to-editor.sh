@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Open a file in the running helix instance.
 #
-# Called from broot via the `open` / `vsplit` verbs in broot/conf.hjson.
-# Talks to helix's external-command Unix socket (helix-editor/helix
-# PR #13896) by way of scripts/helix-send.sh.
+# Called from the treelix sidebar (on `<CR>` / `Ctrl-V`) to route a chosen
+# file into the editor pane. Talks to helix's external-command Unix socket
+# (helix-editor/helix PR #13896) by way of scripts/helix-send.sh.
 #
 # If the socket isn't there — either helix isn't running, or helix is
 # stock and lacks the PR — fall back to spawning a fresh helix pane
@@ -44,7 +44,7 @@ abs=$(abs_path "$target")
 send="$(dirname "${BASH_SOURCE[0]}")/helix-send.sh"
 if "$send" ":$mode $abs" 2>/dev/null; then
 	# Move zellij focus to the editor pane so the user lands in helix
-	# after picking a file, instead of staying parked in broot.
+	# after picking a file, instead of staying parked in the sidebar.
 	editor_id=$(resolve_pane_id_by_name editor)
 	if [[ -n $editor_id ]]; then
 		zellij action focus-pane-id "$editor_id"

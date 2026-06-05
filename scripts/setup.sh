@@ -32,6 +32,12 @@ HELIX_SRC="$HOME/projects/helix"
 HELIX_REPO="https://github.com/kodyberry23/helix"
 HELIX_UPSTREAM="https://github.com/helix-editor/helix"
 HELIX_BRANCH="local-patches"
+# treelix - the nvim-tree-style sidebar file tree. Built from source like
+# helix; `cargo install --path` drops the `treelix` binary into
+# ~/.cargo/bin. Launched in the named `sidebar` zellij pane by
+# scripts/launch-sidebar.sh.
+TREELIX_SRC="$HOME/projects/treelix"
+TREELIX_REPO="https://github.com/kodyberry23/treelix"
 
 usage() {
 	cat <<'USAGE'
@@ -39,15 +45,17 @@ Bootstrap helix-files on a fresh macOS machine.
 
 What it does:
   1. Installs Homebrew if missing
-  2. Installs required Homebrew packages (zellij, broot, mise, jdtls,
+  2. Installs required Homebrew packages (zellij, mise, jdtls,
      erlang_ls, oh-my-posh, fzf, fd, zoxide, eza, bat, tree, git, jq) and
      the Ghostty cask
-  3. Symlinks ~/.config/{helix,zellij,broot,mise,ghostty,oh-my-posh,zsh-helix-mode}
+  3. Symlinks ~/.config/{helix,zellij,treelix,mise,ghostty,oh-my-posh,zsh-helix-mode}
      -> <repo>/<name>
   4. Runs `mise install` to fetch runtimes / LSPs / formatters
   5. Builds Helix from source at ~/projects/helix - clones the kodyberry23/helix
      fork's `local-patches` branch (PR #13896 socket + PR #13963 auto-reload
      + a silent-reload tweak), runs `cargo install --path helix-term`
+  5b. Builds treelix (the sidebar file tree) from source at ~/projects/treelix
+     via `cargo install --path` -> ~/.cargo/bin/treelix
   6. Adds a managed block to ~/.zshrc with: mise activate, ~/.cargo/bin on
      PATH, HELIX_RUNTIME, Nord Aurora FZF colors + key bindings, zoxide
      init, oh-my-posh init, the `hx()` wrapper that stamps a stable pane
@@ -187,7 +195,7 @@ ensure_symlink() {
 
 symlink_configs() {
 	info "~/.config symlinks"
-	local names=(helix zellij broot mise ghostty oh-my-posh zsh-helix-mode)
+	local names=(helix zellij treelix mise ghostty oh-my-posh zsh-helix-mode)
 	local failures=0
 	for name in "${names[@]}"; do
 		if [[ ! -d "$REPO_ROOT/$name" ]]; then
@@ -505,6 +513,43 @@ install_helix_nightly() {
 	ok "hx installed to ~/.cargo/bin (HELIX_RUNTIME=$HELIX_SRC/runtime via .zshrc)"
 }
 
+install_treelix() {
+	info "treelix (sidebar file tree, from $TREELIX_REPO)"
+
+	if $DRY_RUN; then
+		if [[ -d "$TREELIX_SRC/.git" ]]; then
+			would "git -C $TREELIX_SRC pull --ff-only"
+		else
+			would "git clone $TREELIX_REPO $TREELIX_SRC"
+		fi
+		would "cargo install --path $TREELIX_SRC --locked"
+		return
+	fi
+
+	if ! ensure_cargo_on_path; then
+		err "cargo not found - ensure rust is installed (mise install / rustup) and re-run"
+		return 1
+	fi
+	if ! has_cmd git; then
+		err "git not found - install via brew first"
+		return 1
+	fi
+
+	if [[ -d "$TREELIX_SRC/.git" ]]; then
+		ok "$TREELIX_SRC already cloned"
+		git -C "$TREELIX_SRC" pull --ff-only >/dev/null 2>&1 \
+			|| warn "  could not fast-forward $TREELIX_SRC (working tree may be dirty)"
+	else
+		mkdir -p "$(dirname "$TREELIX_SRC")"
+		git clone "$TREELIX_REPO" "$TREELIX_SRC"
+		ok "cloned treelix"
+	fi
+
+	info "  building treelix"
+	cargo install --path "$TREELIX_SRC" --locked
+	ok "treelix installed to ~/.cargo/bin"
+}
+
 # We build helix from source (see install_helix_nightly); mise should never
 # manage it. But if `mise install helix` was ever run on this machine (or
 # the shim was created by an earlier mise version), `~/.local/share/mise/
@@ -551,6 +596,7 @@ main() {
 
 	mise_install
 	install_helix_nightly
+	install_treelix
 	prune_mise_helix
 	clone_zsh_helix_mode
 	setup_managed_block "$ZSHRC" zshrc_block
