@@ -51,7 +51,7 @@ helix-files/
    - Sets `KEYTIMEOUT=1` for snappy modal Esc.
    - Adds `precmd`/`preexec` hooks that emit OSC 0 so the zellij pane title shows `zsh <cwd>` at the prompt and switches to the running command's name while it executes (e.g. `npm install`, `git push`).
    - Defines an `hx()` wrapper that stamps a stable `hx <project>` pane title before launch.
-   - Aliases `hs` to the sessionizer; `zls`/`za`/`zks`/`zka` for zellij session control.
+   - Aliases `hs` to the sessionizer; `zls`/`za`/`zks`/`zka`/`zds`/`zda` for zellij session control.
 
 Every step is idempotent.
 
@@ -227,6 +227,8 @@ The previous tmux setup was replaced with zellij to get **proper 4-edge active p
 | `za` | `zellij attach` (or `za <name>` / `za -c <name>`) |
 | `zks <name>` | `zellij kill-session <name>` |
 | `zka` | `zellij kill-all-sessions --yes` |
+| `zds <name>` | `zellij delete-session <name>` |
+| `zda` | `zellij delete-all-sessions --yes` |
 
 **Why zellij over tmux:** tmux's pane borders are *shared* between adjacent panes - the character at each junction is part of multiple panes' borders, so the active-pane accent always spills 1 cell into neighbours. There's no native option to avoid it (tmux issues #2540, #1786 - both open with no upstream fix). Zellij draws each pane's border independently, so all 4 edges of the active pane carry the accent without spillover. **Tradeoff:** zellij has chronic resize-after-startup bugs (zellij issues #2799, #3675, #3818) - if a pane goes blank or stops accepting input after resizing the Ghostty window, detach (`Ctrl-q`) and reattach (`za <name>`).
 

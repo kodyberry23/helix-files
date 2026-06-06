@@ -360,6 +360,7 @@ alias za='zellij attach'                      # attach (with -c create); usage: 
 alias zks='zellij kill-session'               # kill one session - usage: zks <name>
 alias zka='zellij kill-all-sessions --yes'    # kill all sessions
 alias zds='zellij delete-session'             # delete one session (use --force to kill+delete); usage: zds <name>
+alias zda='zellij delete-all-sessions --yes'  # delete all (exited) sessions
 
 # <<< helix-files managed block <<<
 EOF
