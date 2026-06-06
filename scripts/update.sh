@@ -488,7 +488,13 @@ cleanup_stale() {
 		fi
 	fi
 
-	(( found == 0 )) && ok "nothing stale to clean"
+	if (( found == 0 )); then
+		ok "nothing stale to clean"
+	fi
+	# Never let this function's exit status fall through as non-zero (the
+	# arithmetic test above returns 1 when found!=0), which under `set -e`
+	# would silently abort the rest of update.sh after a successful cleanup.
+	return 0
 }
 
 main() {
