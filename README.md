@@ -51,7 +51,7 @@ helix-files/
    - Sets `KEYTIMEOUT=1` for snappy modal Esc.
    - Adds `precmd`/`preexec` hooks that emit OSC 0 so the zellij pane title shows `zsh <cwd>` at the prompt and switches to the running command's name while it executes (e.g. `npm install`, `git push`).
    - Defines an `hx()` wrapper that stamps a stable `hx <project>` pane title before launch.
-   - Aliases `hs` to the sessionizer; `zls`/`za`/`zks`/`zka`/`zds`/`zda`/`zca` for zellij session control.
+   - Aliases `hs` to the sessionizer; `hfsetup`/`hfupdate` to run `setup.sh`/`update.sh` (args pass through, e.g. `hfupdate --dry-run`); `zls`/`za`/`zks`/`zka`/`zds`/`zda`/`zca` for zellij session control.
 
 Every step is idempotent.
 
