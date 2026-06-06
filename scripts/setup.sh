@@ -361,6 +361,7 @@ alias zks='zellij kill-session'               # kill one session - usage: zks <n
 alias zka='zellij kill-all-sessions --yes'    # kill all sessions
 alias zds='zellij delete-session'             # delete one session (use --force to kill+delete); usage: zds <name>
 alias zda='zellij delete-all-sessions --yes'  # delete all (exited) sessions
+alias zca='zellij kill-all-sessions --yes; zellij delete-all-sessions --yes'  # clear all: kill running + delete exited
 
 # <<< helix-files managed block <<<
 EOF
