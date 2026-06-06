@@ -32,10 +32,10 @@ HELIX_SRC="$HOME/projects/helix"
 HELIX_REPO="https://github.com/kodyberry23/helix"
 HELIX_UPSTREAM="https://github.com/helix-editor/helix"
 HELIX_BRANCH="local-patches"
-# treelix - the nvim-tree-style sidebar file tree. Built from source like
-# helix; `cargo install --path` drops the `treelix` binary into
-# ~/.cargo/bin. Launched in the named `sidebar` zellij pane by
-# scripts/launch-sidebar.sh.
+# treelix - the nvim-tree-style sidebar file tree. By default we install the
+# prebuilt release binary into ~/.cargo/bin (no compile); TREELIX_FROM_SOURCE=1
+# clones $TREELIX_REPO to $TREELIX_SRC and `cargo install --path` instead.
+# Launched in the named `sidebar` zellij pane by scripts/launch-sidebar.sh.
 TREELIX_SRC="$HOME/projects/treelix"
 TREELIX_REPO="https://github.com/kodyberry23/treelix"
 
@@ -54,8 +54,9 @@ What it does:
   5. Builds Helix from source at ~/projects/helix - clones the kodyberry23/helix
      fork's `local-patches` branch (PR #13896 socket + PR #13963 auto-reload
      + a silent-reload tweak), runs `cargo install --path helix-term`
-  5b. Builds treelix (the sidebar file tree) from source at ~/projects/treelix
-     via `cargo install --path` -> ~/.cargo/bin/treelix
+  5b. Installs treelix (the sidebar file tree): downloads the prebuilt release
+     binary -> ~/.cargo/bin/treelix (or builds from source if
+     TREELIX_FROM_SOURCE=1)
   6. Adds a managed block to ~/.zshrc with: mise activate, ~/.cargo/bin on
      PATH, HELIX_RUNTIME, Nord Aurora FZF colors + key bindings, zoxide
      init, oh-my-posh init, the `hx()` wrapper that stamps a stable pane
@@ -513,8 +514,32 @@ install_helix_nightly() {
 	ok "hx installed to ~/.cargo/bin (HELIX_RUNTIME=$HELIX_SRC/runtime via .zshrc)"
 }
 
+# Install treelix. Default: download the prebuilt release binary (no compile,
+# no rust toolchain needed). Set TREELIX_FROM_SOURCE=1 to clone + build instead
+# (for development, or to track main ahead of a release).
 install_treelix() {
-	info "treelix (sidebar file tree, from $TREELIX_REPO)"
+	if [[ "${TREELIX_FROM_SOURCE:-0}" == "1" ]]; then
+		install_treelix_from_source
+		return
+	fi
+
+	info "treelix (prebuilt release for $(uname -m))"
+	if $DRY_RUN; then
+		would "download latest treelix release -> ~/.cargo/bin/treelix"
+		would "(set TREELIX_FROM_SOURCE=1 to build from $TREELIX_REPO instead)"
+		return
+	fi
+
+	if install_treelix_from_release; then
+		ok "treelix $("$HOME/.cargo/bin/treelix" --version 2>/dev/null || echo installed) -> ~/.cargo/bin (prebuilt)"
+	else
+		warn "  prebuilt download failed; falling back to source build"
+		install_treelix_from_source
+	fi
+}
+
+install_treelix_from_source() {
+	info "treelix (from source, $TREELIX_REPO)"
 
 	if $DRY_RUN; then
 		if [[ -d "$TREELIX_SRC/.git" ]]; then

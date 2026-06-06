@@ -15,8 +15,8 @@
 #      Pulls fork updates, fetches `upstream/master`, and reports drift
 #      so the user can rebase deliberately. Skips rebuild when HEAD didn't
 #      move.
-#   4b. treelix (sidebar file tree): git pull + cargo install --path, rebuilt
-#      only when HEAD moved.
+#   4b. treelix (sidebar file tree): download the latest prebuilt release
+#      binary if newer (or git pull + rebuild when TREELIX_FROM_SOURCE=1).
 #   5. zsh-helix-mode: git pull --ff-only
 #   6. ~/.zshrc managed block: re-stamp via `setup.sh --only-zshrc` so
 #      drift between setup.sh's zshrc_block heredoc and the deployed
@@ -235,9 +235,34 @@ update_helix() {
 }
 
 # ─── 4b. treelix (sidebar file tree) ──────────────────────────────────────
-# Pull the treelix checkout and rebuild only if HEAD moved.
+# Update treelix to the latest release binary (no compile). With
+# TREELIX_FROM_SOURCE=1, pull the git checkout and rebuild only if HEAD moved.
 update_treelix() {
 	info "treelix"
+	if [[ "${TREELIX_FROM_SOURCE:-0}" == "1" ]]; then
+		update_treelix_from_source
+		return
+	fi
+
+	local latest installed
+	latest=$(treelix_latest_tag)
+	installed=$(treelix --version 2>/dev/null | awk '{print $2}')
+	if [[ -n $latest && "v${installed:-}" == "$latest" ]]; then
+		ok "already up to date ($latest)"
+		return
+	fi
+	if $DRY_RUN; then
+		would "download latest treelix release (${latest:-latest}) -> ~/.cargo/bin/treelix"
+		return
+	fi
+	if install_treelix_from_release; then
+		ok "treelix -> $(treelix --version 2>/dev/null || echo "${latest:-latest}")"
+	else
+		warn "  release update failed (set TREELIX_FROM_SOURCE=1 to build from source)"
+	fi
+}
+
+update_treelix_from_source() {
 	if [[ ! -d "$TREELIX_SRC/.git" ]]; then
 		warn "$TREELIX_SRC not cloned yet - run setup.sh first; skipping"
 		return

@@ -40,7 +40,7 @@ helix-files/
 3. Symlinks `~/.config/{helix,zellij,treelix,mise,ghostty,oh-my-posh,zsh-helix-mode}` into the matching repo dirs.
 4. Runs `mise install` (auto-trusting `mise/config.toml`) to fetch runtimes, LSPs, and formatters.
 5. Builds **Helix nightly from source** at `~/projects/helix` via `cargo install --path helix-term --locked`.
-5b. Builds **treelix** (the sidebar file tree) from source at `~/projects/treelix` via `cargo install --path` → `~/.cargo/bin/treelix`.
+5b. Installs **treelix** (the sidebar file tree): downloads the prebuilt release binary (for your arch, checksum-verified) → `~/.cargo/bin/treelix` — no compile required. Set `TREELIX_FROM_SOURCE=1` to clone [`kodyberry23/treelix`](https://github.com/kodyberry23/treelix) to `~/projects/treelix` and `cargo install --path` instead (for development or to track `main` ahead of a release). `update.sh` pulls the latest release binary if newer.
 6. Manages a single block in `~/.zshrc` (between `# >>> helix-files managed block >>>` markers) that:
    - Activates `mise` (guarded against double-init).
    - Prepends `~/.cargo/bin` to `PATH`, exports `HELIX_RUNTIME`.

@@ -109,3 +109,62 @@ brew_has() {
 	esac
 	grep -qFx "$pkg" <<<"$list"
 }
+
+# ─── treelix prebuilt-release install ─────────────────────────────────────
+# treelix ships prebuilt macOS binaries from its release workflow, so we
+# install those instead of compiling from source. Set TREELIX_FROM_SOURCE=1
+# (handled by setup.sh / update.sh) to build from the git checkout instead.
+TREELIX_REPO_SLUG="kodyberry23/treelix"
+
+# Map `uname -m` to the release target triple, or fail on an unknown arch.
+treelix_target() {
+	case "$(uname -m)" in
+		arm64|aarch64) echo "aarch64-apple-darwin" ;;
+		x86_64)        echo "x86_64-apple-darwin"  ;;
+		*)             return 1                    ;;
+	esac
+}
+
+# Latest release tag (e.g. v0.1.1) via the public GitHub API. Empty on failure.
+treelix_latest_tag() {
+	curl -fsSL "https://api.github.com/repos/${TREELIX_REPO_SLUG}/releases/latest" 2>/dev/null \
+		| sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+		| head -1
+}
+
+# Download, checksum-verify, and install the latest treelix release binary into
+# ~/.cargo/bin/treelix. Returns 0 on success, non-zero on any failure (callers
+# fall back to a source build).
+install_treelix_from_release() {
+	local target url tmp bin want have
+	target=$(treelix_target) || { warn "  unsupported arch for prebuilt treelix"; return 1; }
+	url="https://github.com/${TREELIX_REPO_SLUG}/releases/latest/download/treelix-${target}.tar.gz"
+
+	tmp=$(mktemp -d) || return 1
+	# shellcheck disable=SC2064
+	trap "rm -rf '$tmp'" RETURN
+
+	if ! curl -fsSL "$url" -o "$tmp/treelix.tar.gz"; then
+		warn "  could not download $url"
+		return 1
+	fi
+	# Verify the published sha256 when present.
+	if curl -fsSL "$url.sha256" -o "$tmp/treelix.sha256" 2>/dev/null; then
+		want=$(awk '{print $1}' "$tmp/treelix.sha256")
+		have=$(shasum -a 256 "$tmp/treelix.tar.gz" | awk '{print $1}')
+		if [[ -n $want && $want != "$have" ]]; then
+			err "  treelix checksum mismatch (expected $want, got $have)"
+			return 1
+		fi
+	fi
+
+	tar -xzf "$tmp/treelix.tar.gz" -C "$tmp" || return 1
+	bin="$tmp/treelix-${target}/treelix"
+	[[ -x $bin ]] || { err "  treelix binary missing in archive"; return 1; }
+
+	mkdir -p "$HOME/.cargo/bin"
+	install -m 0755 "$bin" "$HOME/.cargo/bin/treelix" || return 1
+	# curl doesn't set the quarantine xattr, but strip it defensively.
+	xattr -d com.apple.quarantine "$HOME/.cargo/bin/treelix" 2>/dev/null || true
+	return 0
+}
