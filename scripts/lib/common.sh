@@ -168,3 +168,16 @@ install_treelix_from_release() {
 	xattr -d com.apple.quarantine "$HOME/.cargo/bin/treelix" 2>/dev/null || true
 	return 0
 }
+
+# Resolve a runnable treelix binary: PATH first, then ~/.cargo/bin (zellij panes
+# may spawn with a minimal PATH that omits ~/.cargo/bin). Prints the path and
+# returns 0, or returns 1 if treelix isn't installed anywhere we know.
+treelix_bin() {
+	if command -v treelix >/dev/null 2>&1; then
+		command -v treelix
+	elif [[ -x "$HOME/.cargo/bin/treelix" ]]; then
+		echo "$HOME/.cargo/bin/treelix"
+	else
+		return 1
+	fi
+}

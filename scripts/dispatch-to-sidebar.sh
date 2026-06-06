@@ -32,5 +32,10 @@ if [[ ! -S $sock_path ]]; then
 	exit 1
 fi
 
-# treelix reveal reads TREELIX_SOCKET_PATH to find the instance.
-TREELIX_SOCKET_PATH="$sock_path" treelix reveal "$abs"
+# Resolve treelix via PATH or ~/.cargo/bin (helix's :sh may run with a minimal
+# PATH). treelix reveal reads TREELIX_SOCKET_PATH to find the instance.
+if ! bin=$(treelix_bin); then
+	echo "dispatch-to-sidebar.sh: treelix not found on PATH or in ~/.cargo/bin" >&2
+	exit 1
+fi
+TREELIX_SOCKET_PATH="$sock_path" "$bin" reveal "$abs"
