@@ -116,8 +116,20 @@ newline = "⏎"
 # Reveal current buffer in the treelix sidebar pane. treelix listens on a
 # per-session unix socket (see zellij/layouts/default.kdl); the dispatcher
 # runs `treelix reveal <path>` against that socket so treelix expands to and
-# selects the current file without stealing focus from helix.
+# selects the current file without stealing focus from helix. The reveal also
+# tells treelix which file is "current", so it highlights the open file in the
+# tree (treelix's NvimTreeOpenedFile equivalent) and feeds its `B` no-buffer
+# filter.
 "A-r" = ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}'"
+
+# Auto-follow: when cycling buffers, reveal+highlight the newly-focused buffer
+# in the treelix sidebar. These keep helix's default goto-next/prev-buffer
+# behavior and append a silent reveal (errors suppressed when the sidebar isn't
+# running). Stock helix has no on-buffer-change event, so auto-follow covers the
+# buffer-cycling keys here; `A-r` is the catch-all manual reveal for anything
+# else (jumps, pickers, goto-definition).
+"g"."n" = ["goto_next_buffer", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
+"g"."p" = ["goto_previous_buffer", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
 
 [keys.insert]
 "j"."k" = "normal_mode"
