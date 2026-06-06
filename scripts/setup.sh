@@ -354,9 +354,9 @@ hx() {
 # Helix + zellij sessionizer
 alias hs="__REPO__/scripts/sessionizer.sh"
 
-# helix-files self-management (pass-through args, e.g. `hfupdate --dry-run`)
-alias hfsetup="__REPO__/scripts/setup.sh"    # bootstrap / re-apply the dotfiles
-alias hfupdate="__REPO__/scripts/update.sh"  # update everything + clean stale artifacts
+# helix-files self-management (pass-through args, e.g. `hfu --dry-run`)
+alias hfs="__REPO__/scripts/setup.sh"    # bootstrap / re-apply the dotfiles
+alias hfu="__REPO__/scripts/update.sh"   # update everything + clean stale artifacts
 
 # zellij session helpers
 alias zls='zellij list-sessions'              # list sessions
