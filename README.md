@@ -179,12 +179,14 @@ treelix listens on a per-session unix socket (`$TREELIX_SOCKET_PATH = $XDG_RUNTI
 
 ```sh
 hs              # fzf-pick a project from ~/projects + zoxide frecent dirs
-hs ~/some/path  # skip the picker
+hs helix-files  # open a project by name directly (skips the picker)
+hs ~/some/path  # open a path directly
 ```
 
 How it works:
 
-- Picks from `fd -d 1 ~/projects` and zoxide's frecent dirs (deduped).
+- No arg: picks from `fd -d 1 ~/projects` and zoxide's frecent dirs (deduped) via fzf.
+- With an arg, resolves in order: an existing path → an exact directory name under `~/projects` → zoxide's best frecent match → a unique fuzzy substring match (only falling back to fzf, pre-filled, if the name is ambiguous). Errors with `no project matching: <name>` if nothing resolves.
 - Session name = sanitized basename (alphanumerics + `-` / `_`).
 - New session: zellij applies the `default` layout, which starts treelix in the named `sidebar` pane (listening on a per-session reveal socket) and helix in the named `editor` pane.
 - Already inside zellij: refuses with a hint to detach first (Ctrl-q) - zellij has no in-place "switch session" action, and detach + re-attach is fast since sessions persist on disk (`session_serialization = true`).
