@@ -9,8 +9,9 @@
 #      and the zshrc managed-block content are current)
 #   1b. Stale-artifact cleanup: remove broken ~/.config symlinks into this
 #      repo (e.g. broot, replaced by treelix), stale broot sockets, orphaned
-#      per-session treelix/helix sockets (conservatively), and the broot
-#      brew formula we no longer manage.
+#      per-session treelix/helix sockets (conservatively), the broot brew
+#      formula we no longer manage, and broot's leftover launcher `source`
+#      line in ~/.zshrc (which errors on new shells after broot is removed).
 #   2. Brew packages we installed: brew upgrade (with auto-update disabled)
 #   3. mise-managed tools: mise upgrade (runtimes, LSPs, formatters)
 #   4. Helix nightly: git pull + cargo install --path helix-term --locked.
@@ -440,6 +441,33 @@ cleanup_stale() {
 			brew uninstall broot >/dev/null 2>&1 \
 				&& ok "uninstalled broot" \
 				|| warn "  brew uninstall broot failed (depended on, or in use?)"
+		fi
+	fi
+
+	# 5. broot launcher hook in ~/.zshrc. `broot --install` appends a
+	#    `source ~/.config/broot/launcher/bash/br` line (and sometimes a `# br`
+	#    comment) OUTSIDE our managed block, so it survived the symlink removal
+	#    and now errors on every new shell ("no such file or directory ... /br").
+	#    Strip those lines; a one-time backup is kept at ~/.zshrc.bak.broot.
+	local zrc="$HOME/.zshrc"
+	if [[ -f "$zrc" ]] && grep -qE 'broot/launcher' "$zrc"; then
+		found=1
+		if $DRY_RUN; then
+			would "remove broot launcher line(s) from $zrc (backup: $zrc.bak.broot)"
+		else
+			cp "$zrc" "$zrc.bak.broot" 2>/dev/null || true
+			local tmp
+			tmp=$(mktemp) || tmp=""
+			if [[ -n "$tmp" ]]; then
+				grep -vE 'broot/launcher|^# br$' "$zrc" >"$tmp" 2>/dev/null || true
+				if [[ -s "$tmp" ]]; then
+					mv "$tmp" "$zrc"
+					ok "removed broot launcher line(s) from ~/.zshrc (backup: ~/.zshrc.bak.broot)"
+				else
+					rm -f "$tmp"
+					warn "  skipped ~/.zshrc edit (filter produced empty file)"
+				fi
+			fi
 		fi
 	fi
 
