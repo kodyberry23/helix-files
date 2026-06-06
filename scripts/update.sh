@@ -7,6 +7,10 @@
 # What it updates:
 #   1. helix-files repo itself: git pull --ff-only (so the steps below
 #      and the zshrc managed-block content are current)
+#   1b. Stale-artifact cleanup: remove broken ~/.config symlinks into this
+#      repo (e.g. broot, replaced by treelix), stale broot sockets, orphaned
+#      per-session treelix/helix sockets (conservatively), and the broot
+#      brew formula we no longer manage.
 #   2. Brew packages we installed: brew upgrade (with auto-update disabled)
 #   3. mise-managed tools: mise upgrade (runtimes, LSPs, formatters)
 #   4. Helix nightly: git pull + cargo install --path helix-term --locked.
@@ -52,6 +56,8 @@ itself - pass HOMEBREW_NO_AUTO_UPDATE=1 to `brew upgrade`.
 
 Updates:
   1. helix-files repo (git pull --ff-only)
+  1b. Stale-artifact cleanup (broken config symlinks, broot leftovers,
+     orphaned sockets)
   2. Brew packages we manage (brew upgrade, no auto-update)
   3. mise-managed tools (runtimes, LSPs, formatters)
   4. Helix nightly (pull on master, or fetch + report-only on local-patches)
@@ -343,8 +349,106 @@ refresh_zshrc_managed_block() {
 	fi
 }
 
+# ─── 1b. Clean up stale artifacts ─────────────────────────────────────────
+# Remove things older versions of this setup left behind that are no longer
+# used. Runs after the repo pull so removed files (e.g. the broot config that
+# treelix replaced) are reflected. Conservative: only touches our own broken
+# symlinks, broot's leftovers, and orphaned per-session sockets.
+cleanup_stale() {
+	info "Stale-artifact cleanup"
+	local found=0
+
+	# 1. Broken ~/.config symlinks pointing into THIS repo. Catches configs we
+	#    removed from the repo (broot today, anything else later). Only dangling
+	#    links are removed; live ones are left untouched.
+	if [[ -d "$HOME/.config" ]]; then
+		local link target
+		shopt -s nullglob
+		for link in "$HOME/.config"/*; do
+			[[ -L "$link" ]] || continue
+			target=$(readlink "$link")
+			# `! -e` is true for a dangling link (it follows the link to test).
+			if [[ "$target" == "$REPO_ROOT"/* && ! -e "$link" ]]; then
+				found=1
+				if $DRY_RUN; then
+					would "rm dangling symlink $link -> $target"
+				else
+					rm -f "$link" && ok "removed dangling symlink ~/.config/$(basename "$link")"
+				fi
+			fi
+		done
+		shopt -u nullglob
+	fi
+
+	# 2. Stale broot server sockets (broot is no longer launched at all).
+	local sock
+	shopt -s nullglob
+	for sock in /tmp/broot-server-*.sock; do
+		found=1
+		if $DRY_RUN; then
+			would "rm stale broot socket $sock"
+		else
+			rm -f "$sock" && ok "removed stale broot socket $(basename "$sock")"
+		fi
+	done
+	shopt -u nullglob
+
+	# 3. Orphaned treelix/helix per-session sockets whose owning session is
+	#    gone. Deliberately conservative to never break a live session: a socket
+	#    is only removed when ALL of these hold — no matching live zellij session
+	#    (names sanitized the same way the sockets are), not the session we're
+	#    running inside, and older than 60 minutes (so we never race a session
+	#    that just started). Skipped entirely if zellij isn't available.
+	if has_cmd zellij; then
+		local live="" raw current
+		while IFS= read -r raw; do
+			raw=${raw%% *}                                   # first field = name
+			raw=$(printf '%s' "$raw" | sed -E 's/\x1b\[[0-9;]*m//g')  # strip ANSI
+			[[ -z "$raw" ]] && continue
+			live+="${raw//[^A-Za-z0-9_-]/_}"$'\n'            # sanitize like sockets
+		done < <(zellij list-sessions 2>/dev/null || true)
+		current=${ZELLIJ_SESSION_NAME:-}
+		current=${current//[^A-Za-z0-9_-]/_}
+
+		local base s name
+		for base in "${XDG_RUNTIME_DIR:-/tmp}/treelix" "${XDG_RUNTIME_DIR:-/tmp}/helix"; do
+			[[ -d "$base" ]] || continue
+			shopt -s nullglob
+			for s in "$base"/*.sock; do
+				name=$(basename "$s" .sock)
+				[[ -n "$current" && "$name" == "$current" ]] && continue   # our session
+				grep -qxF "$name" <<<"$live" && continue                   # live session
+				[[ -n "$(find "$s" -mmin +60 2>/dev/null)" ]] || continue  # too fresh
+				found=1
+				if $DRY_RUN; then
+					would "rm orphaned socket $s (no live session '$name')"
+				else
+					rm -f "$s" && ok "removed orphaned socket $(basename "$s")"
+				fi
+			done
+			shopt -u nullglob
+		done
+	fi
+
+	# 4. broot brew formula (replaced by treelix; we no longer manage it).
+	if has_cmd brew && brew_has formula broot; then
+		found=1
+		if $DRY_RUN; then
+			would "brew uninstall broot (replaced by treelix)"
+		else
+			info "  uninstalling broot (replaced by treelix)"
+			brew uninstall broot >/dev/null 2>&1 \
+				&& ok "uninstalled broot" \
+				|| warn "  brew uninstall broot failed (depended on, or in use?)"
+		fi
+	fi
+
+	(( found == 0 )) && ok "nothing stale to clean"
+}
+
 main() {
 	update_helix_files_repo
+	cleanup_stale
 	update_brew_packages
 	update_mise_tools
 	update_helix
