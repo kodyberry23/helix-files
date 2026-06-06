@@ -45,7 +45,11 @@ send="$(dirname "${BASH_SOURCE[0]}")/helix-send.sh"
 if "$send" ":$mode $abs" 2>/dev/null; then
 	# Move zellij focus to the editor pane so the user lands in helix
 	# after picking a file, instead of staying parked in the sidebar.
-	editor_id=$(resolve_pane_id_by_name editor)
+	# `|| true`: list-panes (inside resolve_pane_id_by_name) can exit non-zero
+	# and pipefail propagates it, which would abort this script under `set -e`
+	# *after* the file already opened. Missing focus is harmless; a hard abort
+	# isn't.
+	editor_id=$(resolve_pane_id_by_name editor) || true
 	if [[ -n $editor_id ]]; then
 		zellij action focus-pane-id "$editor_id"
 	fi

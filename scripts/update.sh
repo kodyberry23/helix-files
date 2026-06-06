@@ -244,9 +244,14 @@ update_treelix() {
 		return
 	fi
 
+	# Both substitutions must tolerate failure under `set -e`: a rate-limited
+	# or unreachable GitHub API makes treelix_latest_tag exit non-zero (curl -f
+	# + pipefail), and an old treelix without --version makes that pipeline
+	# fail too. Without the `|| true` either one would abort the whole update
+	# run instead of falling through to a reinstall.
 	local latest installed
-	latest=$(treelix_latest_tag)
-	installed=$(treelix --version 2>/dev/null | awk '{print $2}')
+	latest=$(treelix_latest_tag) || true
+	installed=$(treelix --version 2>/dev/null | awk '{print $2}') || true
 	if [[ -n $latest && "v${installed:-}" == "$latest" ]]; then
 		ok "already up to date ($latest)"
 		return
