@@ -246,6 +246,23 @@ update_helix() {
 # TREELIX_FROM_SOURCE=1, pull the git checkout and rebuild only if HEAD moved.
 update_treelix() {
 	info "treelix"
+
+	# Ensure ~/.config/treelix is linked. setup.sh normally does this, but a
+	# machine switching from broot for the first time may run update before a
+	# fresh setup; without the link treelix falls back to built-in defaults
+	# (functionally identical, but link it so config edits take effect). Only
+	# create when absent — never clobber a real dir/file; cleanup_stale (step
+	# 1b) already removed any dangling link.
+	local cfg="$HOME/.config/treelix" repo_cfg="$REPO_ROOT/treelix"
+	if [[ -d "$repo_cfg" && ! -e "$cfg" && ! -L "$cfg" ]]; then
+		if $DRY_RUN; then
+			would "ln -s $repo_cfg $cfg"
+		else
+			mkdir -p "$(dirname "$cfg")"
+			ln -s "$repo_cfg" "$cfg" && ok "linked ~/.config/treelix -> $repo_cfg"
+		fi
+	fi
+
 	if [[ "${TREELIX_FROM_SOURCE:-0}" == "1" ]]; then
 		update_treelix_from_source
 		return
