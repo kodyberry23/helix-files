@@ -322,6 +322,70 @@ update_treelix_from_source() {
 	ok "rebuilt"
 }
 
+# ─── 4c. zellij (pinned, NOT upgraded) ────────────────────────────────────
+# zellij is deliberately excluded from BREW_FORMULAS, so update_brew_packages
+# never touches it. Instead we enforce the pin here: if the installed zellij
+# isn't ZELLIJ_PINNED_VERSION (e.g. a stray `brew upgrade zellij` or manual
+# install pulled the transparency-breaking 0.44.3 back), remove the brew copy
+# and reinstall the pinned version via cargo. See the regression note in
+# lib/common.sh. No-op in the common case where the pin already holds.
+update_zellij() {
+	info "zellij (pinned $ZELLIJ_PINNED_VERSION, not upgraded)"
+
+	# `|| true`: zellij may be absent, which under `set -e` + pipefail would
+	# otherwise abort the run (same guard as update_treelix's version probe).
+	local installed brew_managed=false
+	installed=$(zellij_installed_version) || true
+	if has_cmd brew && brew_has formula zellij; then
+		brew_managed=true
+	fi
+
+	# Fast path: the pinned cargo build is active and nothing brew-managed
+	# lingers - the steady state, no work to do.
+	if [[ "$installed" == "$ZELLIJ_PINNED_VERSION" && $brew_managed == false ]]; then
+		ok "already at $ZELLIJ_PINNED_VERSION (cargo)"
+		return
+	fi
+
+	if $DRY_RUN; then
+		$brew_managed && would "brew uninstall zellij (drop brew-managed copy)"
+		# A cargo build already at the pin needs no recompile even if a brew
+		# copy is being removed alongside it.
+		[[ "$installed" != "$ZELLIJ_PINNED_VERSION" ]] \
+			&& would "cargo install zellij --version $ZELLIJ_PINNED_VERSION --locked --force"
+		return
+	fi
+
+	if ! ensure_cargo_on_path; then
+		err "cargo not found - install rust via mise / rustup and re-run"
+		return 1
+	fi
+
+	# Remove any brew-managed copy first, then re-probe: dropping brew's zellij
+	# can change which binary is first on PATH (brew's was only active if no
+	# cargo build existed), so decide whether to compile from what survives.
+	if $brew_managed; then
+		info "  removing brew-managed zellij"
+		brew uninstall zellij >/dev/null 2>&1 \
+			&& ok "  uninstalled brew zellij" \
+			|| warn "  brew uninstall zellij failed (detach running sessions and re-run)"
+		installed=$(zellij_installed_version) || true
+	fi
+
+	if [[ "$installed" == "$ZELLIJ_PINNED_VERSION" ]]; then
+		ok "already at $ZELLIJ_PINNED_VERSION (cargo)"
+		return
+	fi
+
+	if [[ -n $installed ]]; then
+		info "  pinning zellij $installed -> $ZELLIJ_PINNED_VERSION (compiles, ~4 min)"
+	else
+		info "  installing pinned zellij $ZELLIJ_PINNED_VERSION (compiles, ~4 min)"
+	fi
+	install_zellij_pinned
+	ok "zellij -> $(zellij_installed_version) (pinned via cargo)"
+}
+
 # ─── 3. mise-managed tools ────────────────────────────────────────────────
 update_mise_tools() {
 	info "mise tools"
@@ -504,6 +568,7 @@ main() {
 	update_mise_tools
 	update_helix
 	update_treelix
+	update_zellij
 	update_zsh_helix_mode
 	refresh_zshrc_managed_block
 

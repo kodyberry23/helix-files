@@ -36,11 +36,12 @@ helix-files/
 `scripts/setup.sh` is the single entry point. It:
 
 1. Installs Homebrew if missing.
-2. Installs the brew formulas (`zellij mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq`) and the Ghostty cask.
+2. Installs the brew formulas (`mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq`) and the Ghostty cask.
 3. Symlinks `~/.config/{helix,zellij,treelix,mise,ghostty,oh-my-posh,zsh-helix-mode}` into the matching repo dirs.
 4. Runs `mise install` (auto-trusting `mise/config.toml`) to fetch runtimes, LSPs, and formatters.
 5. Builds **Helix nightly from source** at `~/projects/helix` via `cargo install --path helix-term --locked`.
 5b. Installs **treelix** (the sidebar file tree): downloads the prebuilt release binary (for your arch, checksum-verified) → `~/.cargo/bin/treelix` — no compile required. Set `TREELIX_FROM_SOURCE=1` to clone [`kodyberry23/treelix`](https://github.com/kodyberry23/treelix) to `~/projects/treelix` and `cargo install --path` instead (for development or to track `main` ahead of a release). `update.sh` pulls the latest release binary if newer.
+5c. Installs **zellij** pinned to a known-good version (`ZELLIJ_PINNED_VERSION` in `scripts/lib/common.sh`) via `cargo install zellij --version <pin> --locked` → `~/.cargo/bin/zellij` — **not** Homebrew. zellij `0.44.3` (PR [#4992](https://github.com/zellij-org/zellij/pull/4992)/#5011, "preserve background color in trailing and skipped characters") paints default-bg cells with a concrete colour instead of leaving them terminal-default, which defeats Ghostty's `background-opacity` and makes Helix's editing area opaque inside zellij. `0.44.2` is the last release before that regression. `setup.sh`/`update.sh` remove any brew-managed `zellij` so a later `brew upgrade` can't resurrect the broken build; `update.sh` re-pins if the installed version drifts. Bump the pin only after confirming transparency still works on the newer version.
 6. Manages a single block in `~/.zshrc` (between `# >>> helix-files managed block >>>` markers) that:
    - Activates `mise` (guarded against double-init).
    - Prepends `~/.cargo/bin` to `PATH`, exports `HELIX_RUNTIME`.

@@ -45,8 +45,8 @@ Bootstrap helix-files on a fresh macOS machine.
 
 What it does:
   1. Installs Homebrew if missing
-  2. Installs required Homebrew packages (zellij, mise, jdtls,
-     erlang_ls, oh-my-posh, fzf, fd, zoxide, eza, bat, tree, git, jq) and
+  2. Installs required Homebrew packages (mise, jdtls, erlang_ls,
+     marksman, oh-my-posh, fzf, fd, zoxide, eza, bat, tree, git, jq) and
      the Ghostty cask
   3. Symlinks ~/.config/{helix,zellij,treelix,mise,ghostty,oh-my-posh,zsh-helix-mode}
      -> <repo>/<name>
@@ -57,6 +57,8 @@ What it does:
   5b. Installs treelix (the sidebar file tree): downloads the prebuilt release
      binary -> ~/.cargo/bin/treelix (or builds from source if
      TREELIX_FROM_SOURCE=1)
+  5c. Installs zellij pinned to a known-good version via cargo (NOT brew):
+     brew's 0.44.3 broke terminal transparency - see lib/common.sh
   6. Adds a managed block to ~/.zshrc with: mise activate, ~/.cargo/bin on
      PATH, HELIX_RUNTIME, Nord Aurora FZF colors + key bindings, zoxide
      init, oh-my-posh init, the `hx()` wrapper that stamps a stable pane
@@ -582,6 +584,52 @@ install_treelix_from_source() {
 	ok "treelix installed to ~/.cargo/bin"
 }
 
+# Install zellij at the pinned version via cargo (see ZELLIJ_PINNED_VERSION /
+# the regression note in lib/common.sh). Removes any brew-managed zellij first
+# so a later `brew upgrade` can't resurrect the transparency-breaking build -
+# the cargo binary in ~/.cargo/bin shadows brew's on PATH, but a lingering brew
+# formula is exactly what update.sh used to upgrade. Skips the (slow) compile
+# when the pinned version is already installed.
+install_zellij() {
+	info "zellij (pinned $ZELLIJ_PINNED_VERSION via cargo)"
+
+	# `|| true`: zellij may be absent, which under `set -e` + pipefail would
+	# otherwise abort the run (same guard as update_treelix's version probe).
+	local installed
+	installed=$(zellij_installed_version) || true
+
+	# Drop a brew-managed copy regardless of the installed version.
+	if has_cmd brew && brew_has formula zellij; then
+		if $DRY_RUN; then
+			would "brew uninstall zellij (now pinned via cargo, not brew)"
+		else
+			info "  removing brew-managed zellij"
+			brew uninstall zellij >/dev/null 2>&1 \
+				&& ok "  uninstalled brew zellij" \
+				|| warn "  brew uninstall zellij failed (detach running sessions and re-run)"
+		fi
+	fi
+
+	if [[ "$installed" == "$ZELLIJ_PINNED_VERSION" ]]; then
+		ok "already at $ZELLIJ_PINNED_VERSION"
+		return
+	fi
+
+	if $DRY_RUN; then
+		would "cargo install zellij --version $ZELLIJ_PINNED_VERSION --locked"
+		return
+	fi
+
+	if ! ensure_cargo_on_path; then
+		err "cargo not found - ensure rust is installed (mise install / rustup) and re-run"
+		return 1
+	fi
+
+	info "  installing zellij $ZELLIJ_PINNED_VERSION (compiles from source, ~4 min)"
+	install_zellij_pinned
+	ok "zellij $(zellij_installed_version) -> ~/.cargo/bin (pinned)"
+}
+
 # We build helix from source (see install_helix_nightly); mise should never
 # manage it. But if `mise install helix` was ever run on this machine (or
 # the shim was created by an earlier mise version), `~/.local/share/mise/
@@ -629,6 +677,7 @@ main() {
 	mise_install
 	install_helix_nightly
 	install_treelix
+	install_zellij
 	prune_mise_helix
 	clone_zsh_helix_mode
 	setup_managed_block "$ZSHRC" zshrc_block

@@ -56,11 +56,38 @@ resolve_pane_id_by_name() {
 }
 
 # ─── Shared package lists (single source of truth) ────────────────────────
-# setup.sh installs these; update.sh upgrades them. Helix and treelix are
-# intentionally excluded - both are built from source in setup.sh. bat and
-# tree feed the FZF preview commands wired up in the .zshrc managed block.
-BREW_FORMULAS=(zellij mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq)
+# setup.sh installs these; update.sh upgrades them. Helix, treelix, and zellij
+# are intentionally excluded: helix/treelix are built from source in setup.sh,
+# and zellij is pinned to a known-good version via cargo (see
+# ZELLIJ_PINNED_VERSION below) rather than tracking brew's latest. bat and tree
+# feed the FZF preview commands wired up in the .zshrc managed block.
+BREW_FORMULAS=(mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq)
 BREW_CASKS=(ghostty)
+
+# ─── zellij pinned install ────────────────────────────────────────────────
+# zellij is pinned rather than tracking Homebrew's latest. 0.44.3 (PR #4992 /
+# #5011, "preserve background color in trailing and skipped characters") broke
+# terminal-background transparency: zellij now paints default-bg cells with a
+# concrete colour instead of leaving them terminal-default (\e[49m), so
+# ghostty's background-opacity no longer shows through helix's editing area,
+# and the zellij theme's `background 0` trick can't work around it. 0.44.2 is
+# the last release before the regression. Installed via cargo into
+# ~/.cargo/bin (which precedes /opt/homebrew/bin on PATH), so it's excluded
+# from BREW_FORMULAS above. Bump this only after confirming transparency still
+# works on the newer version.
+ZELLIJ_PINNED_VERSION="0.44.2"
+
+# Installed zellij version (e.g. "0.44.2"), or empty if not installed.
+zellij_installed_version() {
+	zellij --version 2>/dev/null | awk '{print $2}'
+}
+
+# cargo-install the pinned zellij into ~/.cargo/bin. Pure: no dry-run gating or
+# logging - callers handle those. Compiles from source (~4 min). Returns
+# cargo's exit status.
+install_zellij_pinned() {
+	cargo install zellij --version "$ZELLIJ_PINNED_VERSION" --locked --force
+}
 
 # ─── Dry-run flag handling ────────────────────────────────────────────────
 # parse_dry_run_args sets DRY_RUN=true if --dry-run / -n appears anywhere in
