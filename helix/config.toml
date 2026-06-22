@@ -122,14 +122,39 @@ newline = "⏎"
 # filter.
 "A-r" = ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}'"
 
-# Auto-follow: when cycling buffers, reveal+highlight the newly-focused buffer
-# in the treelix sidebar. These keep helix's default goto-next/prev-buffer
-# behavior and append a silent reveal (errors suppressed when the sidebar isn't
-# running). Stock helix has no on-buffer-change event, so auto-follow covers the
-# buffer-cycling keys here; `A-r` is the catch-all manual reveal for anything
-# else (jumps, pickers, goto-definition).
+# Jump to the current buffer in the treelix sidebar: reveal it AND move zellij
+# focus into the sidebar (the --focus flag). This intentionally overwrites
+# helix's default `space f` file_picker - file navigation lives in treelix in
+# this setup, so leader+f means "find the current file in the tree". Unlike the
+# silent auto-follow reveals below, errors stay visible (like A-r) so a sidebar
+# that isn't running is obvious.
+"space"."f" = ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh --focus '%{buffer_name}'"
+
+# Auto-follow: keep the treelix sidebar pointed at the buffer helix is
+# actually showing, so switching focus to the sidebar (via zellij's pane
+# keys) always lands on the current file. Stock helix has no on-buffer-change
+# event, so we append a silent reveal to every keybind that *immediately*
+# changes the focused buffer at keypress time: buffer cycling, the goto/LSP
+# jumps, last-file jumps, and the jumplist. Each preserves helix's default
+# behavior and tacks on the reveal (errors suppressed when the sidebar is
+# down). The reveal also marks the file "current" for highlighting and the
+# `B` no-buffer filter.
+#
+# Irreducible gap: the file/buffer PICKERS (space-f, space-b, ...) switch the
+# buffer only on <Enter> *inside* the picker overlay, which no config keybind
+# can hook. `A-r` above stays as the manual catch-all for those.
 "g"."n" = ["goto_next_buffer", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
 "g"."p" = ["goto_previous_buffer", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
+"g"."d" = ["goto_definition", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
+"g"."D" = ["goto_declaration", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
+"g"."y" = ["goto_type_definition", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
+"g"."i" = ["goto_implementation", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
+"g"."r" = ["goto_reference", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
+"g"."f" = ["goto_file", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
+"g"."a" = ["goto_last_accessed_file", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
+"g"."m" = ["goto_last_modified_file", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
+"C-o" = ["jump_backward", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
+"C-i" = ["jump_forward", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
 
 [keys.insert]
 "j"."k" = "normal_mode"

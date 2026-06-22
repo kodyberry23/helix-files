@@ -9,13 +9,22 @@
 # to expand to and select <path>. It exits non-zero if no instance is
 # listening, so we probe the socket first and fail loudly rather than hang.
 #
-# Usage: dispatch-to-sidebar.sh <path>
+# Usage: dispatch-to-sidebar.sh [--focus] <path>
 
 set -euo pipefail
 
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 
-target=${1:-}
+# Parse args: an optional --focus flag (move zellij focus into the sidebar
+# pane after revealing) plus the target path.
+focus=0
+target=
+for arg in "$@"; do
+	case "$arg" in
+		--focus) focus=1 ;;
+		*) target=$arg ;;
+	esac
+done
 if [[ -z $target ]]; then
 	exit 0
 fi
@@ -39,3 +48,17 @@ if ! bin=$(treelix_bin); then
 	exit 1
 fi
 TREELIX_SOCKET_PATH="$sock_path" "$bin" reveal "$abs"
+
+# With --focus, move zellij focus into the sidebar pane so this doubles as a
+# "jump to the current file in treelix" action (mirrors dispatch-to-editor.sh
+# focusing the editor pane after an open). The auto-follow reveals omit the
+# flag, so they refresh the tree without stealing focus from helix.
+if [[ $focus -eq 1 ]]; then
+	# `|| true`: resolve_pane_id_by_name runs `zellij action list-panes`, which
+	# can exit non-zero; pipefail would otherwise abort here *after* the reveal
+	# already landed. A missing focus move is harmless; a hard abort isn't.
+	sidebar_id=$(resolve_pane_id_by_name sidebar) || true
+	if [[ -n $sidebar_id ]]; then
+		zellij action focus-pane-id "$sidebar_id"
+	fi
+fi
