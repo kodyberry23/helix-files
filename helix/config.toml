@@ -140,9 +140,10 @@ newline = "⏎"
 # down). The reveal also marks the file "current" for highlighting and the
 # `B` no-buffer filter.
 #
-# Irreducible gap: the file/buffer PICKERS (space-f, space-b, ...) switch the
-# buffer only on <Enter> *inside* the picker overlay, which no config keybind
-# can hook. `A-r` above stays as the manual catch-all for those.
+# Irreducible gap: the buffer/symbol PICKERS (space-b, space-s, space-j, ...)
+# switch the buffer only on <Enter> *inside* the picker overlay, which no config
+# keybind can hook. (space-f is no longer one of these - it's rebound above to
+# jump straight to the sidebar.) `A-r` stays as the manual catch-all for those.
 "g"."n" = ["goto_next_buffer", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
 "g"."p" = ["goto_previous_buffer", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
 "g"."d" = ["goto_definition", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]

@@ -15,6 +15,18 @@ set -euo pipefail
 
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 
+# Move zellij focus into the sidebar pane. `|| true`: resolve_pane_id_by_name
+# runs `zellij action list-panes`, which can exit non-zero; pipefail would
+# otherwise abort the caller. A missing focus move is harmless; a hard abort
+# isn't.
+focus_sidebar() {
+	local sidebar_id
+	sidebar_id=$(resolve_pane_id_by_name sidebar) || true
+	if [[ -n $sidebar_id ]]; then
+		zellij action focus-pane-id "$sidebar_id"
+	fi
+}
+
 # Parse args: an optional --focus flag (move zellij focus into the sidebar
 # pane after revealing) plus the target path.
 focus=0
@@ -26,6 +38,9 @@ for arg in "$@"; do
 	esac
 done
 if [[ -z $target ]]; then
+	# Nothing to reveal (e.g. a scratch/unnamed buffer). With --focus, still
+	# move into the sidebar so the key reliably lands you there regardless.
+	[[ $focus -eq 1 ]] && focus_sidebar
 	exit 0
 fi
 
@@ -53,12 +68,4 @@ TREELIX_SOCKET_PATH="$sock_path" "$bin" reveal "$abs"
 # "jump to the current file in treelix" action (mirrors dispatch-to-editor.sh
 # focusing the editor pane after an open). The auto-follow reveals omit the
 # flag, so they refresh the tree without stealing focus from helix.
-if [[ $focus -eq 1 ]]; then
-	# `|| true`: resolve_pane_id_by_name runs `zellij action list-panes`, which
-	# can exit non-zero; pipefail would otherwise abort here *after* the reveal
-	# already landed. A missing focus move is harmless; a hard abort isn't.
-	sidebar_id=$(resolve_pane_id_by_name sidebar) || true
-	if [[ -n $sidebar_id ]]; then
-		zellij action focus-pane-id "$sidebar_id"
-	fi
-fi
+[[ $focus -eq 1 ]] && focus_sidebar
