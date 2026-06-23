@@ -346,11 +346,24 @@ typeset -ga precmd_functions preexec_functions
 # helix from an ad-hoc shell pane (not the layout's editor pane - that one
 # starts helix directly and inherits the pane's KDL `name`). Useful when a
 # user spawns a side pane and runs hx manually for one-off edits.
+#
+# Each ad-hoc helix also gets its OWN command socket. Helix's listener (PR
+# #13896) binds $HELIX_SOCKET_PATH or the shared default
+# $XDG_RUNTIME_DIR/helix/helix.sock, and it neither pre-removes a stale socket
+# before binding nor deletes one on exit - so a leftover file from a prior
+# instance makes every later ad-hoc `hx` print "Failed to bind listener to
+# socket" and run without its command socket. The layout's editor pane avoids
+# this via launch-editor.sh's per-session path + pre-rm; give ad-hoc panes a
+# per-shell path (pre/post rm) so they never collide with it or each other.
 hx() {
-	local __proj
+	local __proj __sock
 	__proj=$(git rev-parse --show-toplevel 2>/dev/null) || __proj=$PWD
 	printf '\e]0;hx %s\a' "${__proj##*/}"
-	command hx "$@"
+	__sock="${XDG_RUNTIME_DIR:-/tmp}/helix/hx-$$.sock"
+	mkdir -p "${__sock:h}"
+	rm -f "$__sock"
+	HELIX_SOCKET_PATH="$__sock" command hx "$@"
+	rm -f "$__sock"
 }
 
 # Helix + zellij sessionizer
