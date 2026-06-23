@@ -10,3 +10,6 @@ zsh-helix-mode/
 
 # mise leaves timestamped backups when configs are first trusted.
 *.toml-[0-9]*
+
+# Stray Rust compile output (e.g. `rustc foo.rs -o rust_out`) - not a repo artifact.
+rust_out
