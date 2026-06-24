@@ -286,6 +286,7 @@ update_treelix() {
 	fi
 	if install_treelix_from_release; then
 		ok "treelix -> $(treelix --version 2>/dev/null || echo "${latest:-latest}")"
+		warn "  restart open treelix sidebar panes to load it (running ones keep the old binary)"
 	else
 		warn "  release update failed (set TREELIX_FROM_SOURCE=1 to build from source)"
 	fi
@@ -320,6 +321,7 @@ update_treelix_from_source() {
 	info "  rebuilding treelix ($before -> $after)"
 	cargo install --path "$TREELIX_SRC" --locked --force
 	ok "rebuilt"
+	warn "  restart open treelix sidebar panes to load it (running ones keep the old binary)"
 }
 
 # ─── 4c. zellij (pinned, NOT upgraded) ────────────────────────────────────
