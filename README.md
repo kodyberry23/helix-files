@@ -156,7 +156,7 @@ Plus:
 
 ### treelix sidebar + persistent editor
 
-The default zellij layout is a vertical split: `sidebar` ([treelix](https://github.com/kodyberry23/treelix), the nvim-tree-style file tree, ~15% width, persistent) on the left, `editor` (helix, ~85% width, persistent) on the right. Files routed sidebar → editor stay in helix's existing buffers/splits rather than spawning a fresh editor each time, which is the architectural fix for [zellij#4893](https://github.com/zellij-org/zellij/issues/4893) (alt-screen pollution on TUI exit): there is no TUI churn during normal use - helix and treelix both stay in their alt-screens for the life of the session.
+The default zellij layout is a vertical split: `sidebar` ([treelix](https://github.com/kodyberry23/treelix), the nvim-tree-style file tree, ~10% width, persistent) on the left, `editor` (helix, ~90% width, persistent) on the right. Files routed sidebar → editor stay in helix's existing buffers/splits rather than spawning a fresh editor each time, which is the architectural fix for [zellij#4893](https://github.com/zellij-org/zellij/issues/4893) (alt-screen pollution on TUI exit): there is no TUI churn during normal use - helix and treelix both stay in their alt-screens for the life of the session.
 
 treelix is a Rust rewrite of nvim-tree.lua: a live file tree with git status, file-watching auto-reload, file operations, and Deep Nord Aurora theming that matches the rest of the bundle. Press `g?` inside it for keybindings.
 

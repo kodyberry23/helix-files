@@ -107,7 +107,7 @@ newline = "⏎"
 # toggles because the underlying pane stays alive - it's just hidden.
 #
 # Trade-off: a brief flicker on un-toggle as helix receives SIGWINCH
-# and reflows from 100% to 82% width. Inherent to terminal apps.
+# and reflows from 100% back to its normal (~87%) width. Inherent to terminal apps.
 # Close/respawn would avoid that flicker but `zellij action new-pane`
 # has no --size for tiled panes (only floating), so the new sidebar
 # would land at 50%, ignoring the layout's width.
