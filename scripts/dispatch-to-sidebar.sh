@@ -46,10 +46,9 @@ fi
 
 abs=$(abs_path "$target")
 
-# Match launch-sidebar.sh's per-session socket derivation exactly.
-session=${ZELLIJ_SESSION_NAME:-default}
-session=${session//[^A-Za-z0-9_-]/_}
-sock_path="${XDG_RUNTIME_DIR:-/tmp}/treelix/${session}.sock"
+# Same per-session socket the sidebar bound in launch-sidebar.sh
+# (single derivation: treelix_socket_path in lib/common.sh).
+sock_path="$(treelix_socket_path)"
 
 if [[ ! -S $sock_path ]]; then
 	echo "dispatch-to-sidebar.sh: no treelix socket at $sock_path (sidebar not running?)" >&2

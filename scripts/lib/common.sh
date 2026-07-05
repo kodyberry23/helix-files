@@ -41,6 +41,25 @@ abs_path() {
 	fi
 }
 
+# ─── Per-session socket paths (single source of truth) ────────────────────
+# helix (command listener, PR #13896) and treelix (reveal socket) each bind
+# a per-zellij-session unix socket. Binder and sender MUST derive identical
+# paths, so every script goes through these helpers; treelix's own Rust
+# fallback (src/ipc.rs) mirrors the same derivation for when the env vars
+# aren't set. Session names are sanitized to filename-safe characters.
+zellij_session_slug() {
+	local s=${ZELLIJ_SESSION_NAME:-default}
+	printf '%s' "${s//[^A-Za-z0-9_-]/_}"
+}
+
+helix_socket_path() {
+	printf '%s' "${XDG_RUNTIME_DIR:-/tmp}/helix/$(zellij_session_slug).sock"
+}
+
+treelix_socket_path() {
+	printf '%s' "${XDG_RUNTIME_DIR:-/tmp}/treelix/$(zellij_session_slug).sock"
+}
+
 # Print the zellij pane id for the terminal pane whose TITLE matches $1,
 # or nothing if no match. TITLE is the layout's `pane name="..."` and
 # stable across resizes, tab moves, and restarts (but not manual rename

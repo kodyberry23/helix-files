@@ -23,16 +23,21 @@
 #   4b. treelix (sidebar file tree): download the latest prebuilt release
 #      binary if newer (or git pull + rebuild when TREELIX_FROM_SOURCE=1).
 #   5. zsh-helix-mode: git pull --ff-only
-#   6. ~/.zshrc managed block: re-stamp via `setup.sh --only-zshrc` so
-#      drift between setup.sh's zshrc_block heredoc and the deployed
-#      ~/.zshrc gets corrected on every update
+#   5b. Theme system: re-run scripts/apply-theme.sh so a pulled change to
+#      themes/*.toml or themes/templates/* regenerates the per-app theme
+#      files and re-points them at the active theme from
+#      ~/.config/helix-files.toml. This step also re-stamps the ~/.zshrc
+#      managed block (apply-theme.sh ends with `setup.sh --only-zshrc` in
+#      a fresh bash, so it always sees the just-pulled zshrc_block), which
+#      is what keeps the deployed ~/.zshrc from drifting behind setup.sh
+#      edits on every update.
 #
 # Caveat: step 1 pulls a new copy of common.sh / setup.sh / update.sh,
 # but this script keeps running with the OLD versions it already sourced.
 # If a pull changes BREW_FORMULAS, mise tools, or update.sh's own logic,
-# re-run scripts/update.sh once more to apply the new behavior. Step 6
-# shells out to a fresh `bash setup.sh`, so it always sees the latest
-# zshrc_block content.
+# re-run scripts/update.sh once more to apply the new behavior. Step 5b
+# shells out to fresh `bash apply-theme.sh` / `bash setup.sh` processes,
+# so themes and the zshrc block always come from the just-pulled tree.
 #
 # Usage:
 #   scripts/update.sh             # actually update
@@ -63,7 +68,8 @@ Updates:
   3. mise-managed tools (runtimes, LSPs, formatters)
   4. Helix nightly (pull on master, or fetch + report-only on local-patches)
   5. zsh-helix-mode (git pull)
-  6. ~/.zshrc managed block (setup.sh --only-zshrc)
+  5b. Theme system (apply-theme.sh: regenerate + re-point per-app themes;
+     also re-stamps the ~/.zshrc managed block)
 
 Usage:
   scripts/update.sh             actually update
@@ -216,6 +222,9 @@ update_helix() {
 		info "  rebuilding helix-term"
 		cargo install --path "$HELIX_SRC/helix-term" --locked --force
 		ok "rebuilt ($(git -C "$HELIX_SRC" rev-parse --short HEAD))"
+		warn "  restart open editor panes to load it - a running old helix still"
+		warn "  accepts socket dispatches but may lack :open-pick (sidebar picks"
+		warn "  would show 'no such command' and open nothing until restarted)"
 		return
 	fi
 
@@ -239,6 +248,7 @@ update_helix() {
 	info "  rebuilding helix-term ($before -> $after)"
 	cargo install --path "$HELIX_SRC/helix-term" --locked
 	ok "rebuilt"
+	warn "  restart open editor panes to load it (running ones keep the old binary)"
 }
 
 # ─── 4b. treelix (sidebar file tree) ──────────────────────────────────────
@@ -421,15 +431,20 @@ update_zsh_helix_mode() {
 	ok "up to date"
 }
 
-# ─── 7. ~/.zshrc managed block ────────────────────────────────────────────
-# Shells out to setup.sh in a fresh bash process so it picks up the
-# zshrc_block heredoc from the just-pulled tree (not whatever update.sh
-# happened to source at startup).
-refresh_zshrc_managed_block() {
+# ─── 5b. Theme system (+ ~/.zshrc managed block) ──────────────────────────
+# Shells out to apply-theme.sh in a fresh bash process so it picks up
+# just-pulled templates/themes, not whatever this script sourced at
+# startup. Regenerates every theme's per-app files, re-points them at the
+# active theme, and (as its last step) re-stamps the ~/.zshrc managed
+# block via `setup.sh --only-zshrc` - also in a fresh bash, so the block
+# content is the just-pulled zshrc_block. No separate zshrc step: that
+# would stamp the identical block a second time per update.
+apply_theme() {
+	info "theme system (apply-theme.sh)"
 	if $DRY_RUN; then
-		bash "$SCRIPT_DIR/setup.sh" --only-zshrc --dry-run
+		bash "$SCRIPT_DIR/apply-theme.sh" --dry-run
 	else
-		bash "$SCRIPT_DIR/setup.sh" --only-zshrc
+		bash "$SCRIPT_DIR/apply-theme.sh"
 	fi
 }
 
@@ -572,7 +587,7 @@ main() {
 	update_treelix
 	update_zellij
 	update_zsh_helix_mode
-	refresh_zshrc_managed_block
+	apply_theme
 
 	echo
 	if $DRY_RUN; then

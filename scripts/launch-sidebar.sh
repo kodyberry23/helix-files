@@ -15,13 +15,8 @@ set -euo pipefail
 
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 
-session=${ZELLIJ_SESSION_NAME:-default}
-# Strip anything that's not safe (zellij sanitizes already, but defensive).
-session=${session//[^A-Za-z0-9_-]/_}
-
-base_dir=${XDG_RUNTIME_DIR:-/tmp}/treelix
-mkdir -p "$base_dir"
-sock="$base_dir/${session}.sock"
+sock="$(treelix_socket_path)"
+mkdir -p "$(dirname "$sock")"
 rm -f "$sock"
 
 # Resolve treelix via PATH or ~/.cargo/bin. zellij panes can spawn with a

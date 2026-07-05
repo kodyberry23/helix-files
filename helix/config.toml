@@ -1,4 +1,4 @@
-theme = "nord-aurora"
+theme = "oh-lucy-evening"
 
 [editor]
 line-number = "relative"
@@ -113,49 +113,23 @@ newline = "⏎"
 # would land at 50%, ignoring the layout's width.
 "space"."e" = ":sh zellij action toggle-fullscreen"
 
-# Reveal current buffer in the treelix sidebar pane. treelix listens on a
-# per-session unix socket (see zellij/layouts/default.kdl); the dispatcher
-# runs `treelix reveal <path>` against that socket so treelix expands to and
-# selects the current file without stealing focus from helix. The reveal also
-# tells treelix which file is "current", so it highlights the open file in the
-# tree (treelix's NvimTreeOpenedFile equivalent) and feeds its `B` no-buffer
-# filter.
+# Sidebar follow is NOT configured here: the patched hx pushes
+# `reveal-follow` to the treelix socket on every focused-buffer change
+# (TREELIX_SOCKET_PATH from launch-editor.sh / the hx() zshrc wrapper).
+# See README "Editor → sidebar (automatic follow)". The two bindings below
+# are the manual fallbacks.
+
+# Manual reveal, kept as a fallback: re-sends the current buffer to the
+# sidebar via the dispatcher script (errors visible, so a sidebar that isn't
+# running is obvious). Useful if the sidebar pane was restarted and missed
+# the last follow push, or when running a stock hx without the follow patch.
 "A-r" = ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}'"
 
 # Jump to the current buffer in the treelix sidebar: reveal it AND move zellij
 # focus into the sidebar (the --focus flag). This intentionally overwrites
 # helix's default `space f` file_picker - file navigation lives in treelix in
-# this setup, so leader+f means "find the current file in the tree". Unlike the
-# silent auto-follow reveals below, errors stay visible (like A-r) so a sidebar
-# that isn't running is obvious.
+# this setup, so leader+f means "find the current file in the tree".
 "space"."f" = ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh --focus '%{buffer_name}'"
-
-# Auto-follow: keep the treelix sidebar pointed at the buffer helix is
-# actually showing, so switching focus to the sidebar (via zellij's pane
-# keys) always lands on the current file. Stock helix has no on-buffer-change
-# event, so we append a silent reveal to every keybind that *immediately*
-# changes the focused buffer at keypress time: buffer cycling, the goto/LSP
-# jumps, last-file jumps, and the jumplist. Each preserves helix's default
-# behavior and tacks on the reveal (errors suppressed when the sidebar is
-# down). The reveal also marks the file "current" for highlighting and the
-# `B` no-buffer filter.
-#
-# Irreducible gap: the buffer/symbol PICKERS (space-b, space-s, space-j, ...)
-# switch the buffer only on <Enter> *inside* the picker overlay, which no config
-# keybind can hook. (space-f is no longer one of these - it's rebound above to
-# jump straight to the sidebar.) `A-r` stays as the manual catch-all for those.
-"g"."n" = ["goto_next_buffer", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
-"g"."p" = ["goto_previous_buffer", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
-"g"."d" = ["goto_definition", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
-"g"."D" = ["goto_declaration", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
-"g"."y" = ["goto_type_definition", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
-"g"."i" = ["goto_implementation", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
-"g"."r" = ["goto_reference", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
-"g"."f" = ["goto_file", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
-"g"."a" = ["goto_last_accessed_file", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
-"g"."m" = ["goto_last_modified_file", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
-"C-o" = ["jump_backward", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
-"C-i" = ["jump_forward", ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}' 2>/dev/null"]
 
 [keys.insert]
 "j"."k" = "normal_mode"

@@ -1,0 +1,87 @@
+# Deep Nord Aurora - canonical theme definition.
+#
+# This is the SINGLE SOURCE OF TRUTH for this theme. scripts/apply-theme.sh
+# renders it through themes/templates/* into the per-app files (helix,
+# treelix, ghostty, zellij, oh-my-posh) and the ~/.zshrc managed block
+# (fzf + zsh-helix-mode colors). Edit here, then run `hfu` or
+# scripts/apply-theme.sh - never edit the generated files.
+#
+# Schema: every key below is REQUIRED (scripts/lib/theme.sh
+# THEME_REQUIRED_KEYS validates and lists anything missing). Values must be
+# double-quoted "#RRGGBB" (exactly 6 hex digits - treelix's parser accepts
+# nothing shorter, and the awk parser reads only quoted values).
+#
+# Nord palette pushed darker/richer: Polar Night backgrounds drop into
+# ink-black with a blue undertone, Frost cools gain saturation, Aurora warms
+# shift moodier. Palette ref: https://www.nordtheme.com/docs/colors-and-palettes
+
+[meta]
+# Must equal the filename (also used as the helix/zellij/ghostty/treelix
+# theme name and in the config pointer lines).
+name = "nord-aurora"
+
+[ui]
+bg            = "#1A1F28"  # base background (polar0) - ghostty bg; editor panes render terminal-default
+bg_dark       = "#13171F"  # recessed statusline strip - one notch darker than bg
+bg_surface    = "#232934"  # popups / menus / zellij ribbons + rows (polar1)
+bg_highlight  = "#2C333E"  # selection bg, whitespace markers, menu scroll (polar2)
+bg_highlight2 = "#4F5870"  # primary-selection bg, stronger (polar3)
+fg            = "#D8DEE9"  # base foreground (snow0)
+fg_bright     = "#ECEFF4"  # emphasized text, fzf current line (snow2)
+fg_muted      = "#4F5870"  # comments / line numbers / borders / inactive (polar3)
+cursor        = "#74BCD9"  # unified cursor: helix ui.cursor, ghostty cursor-color, ZHM OSC-12 (frost1)
+accent        = "#74BCD9"  # primary accent: prompt char, headings, fzf hl, mode badge (frost1)
+accent_alt    = "#6FBAB7"  # secondary accent: h1, diagnostics info (frost0 rich teal)
+accent_dim    = "#5F8FBF"  # tertiary accent: h3, links, prompt time (frost2 bold blue)
+folder        = "#74BCD9"  # treelix directories + folder icons (frost1, same as accent here)
+selection_bg  = "#2C333E"  # ghostty selection (polar2)
+selection_fg  = "#ECEFF4"  # ghostty selection text (snow2)
+
+[colors]
+# Diagnostic / diff / git / statusline-badge rainbow.
+red    = "#D04E5C"  # rich crimson - error / diff-minus
+orange = "#D97757"  # terracotta - untracked / jump labels / fzf pointer
+yellow = "#DDB867"  # warm amber - warnings / dirty / select badge
+green  = "#8DBC6E"  # deep grass - success / diff-plus / insert badge
+purple = "#B97AB6"  # rich plum - bookmarks / multiplayer
+blue   = "#426F9E"  # deep blue (frost3) - secondary player / exit-code accents
+
+[syntax]
+# Purpose-named so themes with different color conventions (oh-lucy: pink
+# keywords, green functions) map cleanly onto the same helix scopes.
+keyword      = "#B97AB6"  # keywords, keyword.control, variable.builtin (plum)
+function     = "#74BCD9"  # functions, methods, builtins (frost1)
+string       = "#8DBC6E"  # strings, markup.raw (grass)
+type         = "#DDB867"  # types, attributes (amber)
+type_builtin = "#74BCD9"  # type.builtin (frost1)
+constant     = "#D97757"  # constants, special, string.regexp (terracotta)
+number       = "#B97AB6"  # numerics, constant.builtin (plum)
+comment      = "#4F5870"  # comments, markup.quote (polar3)
+operator     = "#74BCD9"  # operators (frost1)
+punctuation  = "#D8DEE9"  # punctuation, delimiters, brackets (snow0)
+variable     = "#D8DEE9"  # variables, parameters (snow0)
+member       = "#6FBAB7"  # variable.other.member (frost0)
+special      = "#6FBAB7"  # escapes, constructors, macros, string.special (frost0)
+namespace    = "#5F8FBF"  # namespaces, tags, labels, keyword.operator/directive (frost2)
+
+[ansi]
+# Terminal palette (ghostty `palette = N=...`). fg is separate from ui.fg
+# because some themes (oh-lucy) use a brighter terminal foreground than the
+# editor foreground.
+c0  = "#232934"  # black: Polar Night (deep ink)
+c1  = "#D04E5C"  # red: Aurora (rich crimson)
+c2  = "#8DBC6E"  # green: Aurora (deep grass)
+c3  = "#DDB867"  # yellow: Aurora (warm amber)
+c4  = "#426F9E"  # blue: Frost (deep blue)
+c5  = "#B97AB6"  # magenta: Aurora (rich plum)
+c6  = "#74BCD9"  # cyan: Frost (primary cyan)
+c7  = "#D8DEE9"  # white: Snow Storm
+c8  = "#4F5870"  # bright black: Polar Night (dim text / borders)
+c9  = "#D04E5C"  # bright red
+c10 = "#8DBC6E"  # bright green
+c11 = "#DDB867"  # bright yellow
+c12 = "#5F8FBF"  # bright blue: Frost (bold blue)
+c13 = "#B97AB6"  # bright magenta
+c14 = "#6FBAB7"  # bright cyan: Frost (rich teal)
+c15 = "#ECEFF4"  # bright white: Snow Storm
+fg  = "#D8DEE9"  # terminal foreground (snow0)

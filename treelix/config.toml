@@ -7,7 +7,7 @@
 
 # Deep Nord Aurora, mirroring the rest of the bundle. Use "helix" to instead
 # derive colors from the active helix theme at runtime.
-theme = "nord-aurora"
+theme = "oh-lucy-evening"
 
 # Nerd Font glyphs (Ghostty ships a Nerd Font).
 icons = true

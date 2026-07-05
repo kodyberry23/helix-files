@@ -1,13 +1,13 @@
 // Default zellij layout. Two named panes:
 //
-//   sidebar (10% width): treelix (the file tree), run via
+//   sidebar (14% width): treelix (the file tree), run via
 //     scripts/launch-sidebar.sh which exec's `treelix` with a session-scoped
 //     reveal socket ($TREELIX_SOCKET_PATH). Persistent for the life of the
 //     session.
 //
-//   editor (focused, 90% width): helix, persistent. Files chosen in treelix
+//   editor (focused, 86% width): helix, persistent. Files chosen in treelix
 //     are routed here via scripts/dispatch-to-editor.sh, which sends
-//     ":open <path>" to helix over its command socket and focuses this pane.
+//     ":open-pick <path>" to helix over its command socket and focuses this pane.
 //
 // Sidebar visibility is toggled by `space e` in helix, which fires
 // `zellij action toggle-fullscreen`. That expands helix to fill the
@@ -18,7 +18,7 @@
 // repo at $HOME/projects/helix-files.
 layout {
     pane split_direction="vertical" {
-        pane name="sidebar" size="10%" command="sh" {
+        pane name="sidebar" size="14%" command="sh" {
             args "-c" "exec $HOME/projects/helix-files/scripts/launch-sidebar.sh"
         }
         pane name="editor" focus=true command="sh" {

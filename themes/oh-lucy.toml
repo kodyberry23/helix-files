@@ -1,0 +1,81 @@
+# Oh Lucy - cool blue-charcoal dark theme, ported from
+# https://github.com/yazeed1s/oh-lucy.nvim (lua/oh-lucy/colors.lua +
+# terminal/ghostty/oh-lucy.conf).
+#
+# Canonical theme definition - see themes/nord-aurora.toml for schema notes.
+# Rendered into the per-app configs by scripts/apply-theme.sh.
+#
+# Curation notes (the only non-mechanical choices; everything else is
+# straight from upstream):
+#   - Statusline uses this setup's "recessed darker strip" convention
+#     (ui.bg_dark = upstream `dark` #14161D); upstream's own statusline is
+#     a light gray (#7C7E8C) which reads inverted next to the other apps.
+#   - ANSI slots come from upstream's own ghostty config (more saturated,
+#     purpose-built terminal palette) rather than the nvim syntax colors.
+#   - accent follows upstream's pink/red keyword color #FB7DA7 - it's the
+#     theme's visual signature (cursor stays the upstream cursor #DFE0EA).
+
+[meta]
+name = "oh-lucy"
+
+[ui]
+bg            = "#1B1D26"  # upstream bg
+bg_dark       = "#14161D"  # upstream `dark` (floats/statusline fg) - recessed strip
+bg_surface    = "#272932"  # upstream black1 / CursorLine bg
+bg_highlight  = "#272932"  # upstream visual_select_bg
+bg_highlight2 = "#555B6C"  # upstream line_fg, strongest surface step
+fg            = "#D7D7D7"  # upstream fg
+fg_bright     = "#E9E9E9"  # upstream white (bright)
+fg_muted      = "#555B6C"  # upstream line_fg (LineNr)
+cursor        = "#DFE0EA"  # upstream ghostty cursor-color
+accent        = "#FB7DA7"  # upstream red_key_w - the signature pink
+accent_alt    = "#74C7A4"  # upstream green_func
+accent_dim    = "#8DBBD3"  # upstream blue_type
+folder        = "#8DBBD3"  # treelix directories + folder icons - blue, NOT the pink
+                           # accent: pink/red folders read as errors in a file tree
+selection_bg  = "#CFD0D7"  # upstream ghostty selection-background (light-on-dark inversion)
+selection_fg  = "#1A1B1F"  # upstream ghostty selection-foreground
+
+[colors]
+red    = "#D95555"  # upstream red_err
+orange = "#E39A65"  # upstream orange_wr
+yellow = "#E9D26C"  # upstream ghostty yellow
+green  = "#76C5A4"  # upstream green
+purple = "#AF98E6"  # upstream boolean
+blue   = "#7EB7E6"  # upstream ghostty blue
+
+[syntax]
+keyword      = "#FB7DA7"  # upstream red_key_w
+function     = "#74C7A4"  # upstream green_func
+string       = "#E3CF65"  # upstream yellow (nvim)
+type         = "#8DBBD3"  # upstream blue_type
+type_builtin = "#8DBBD3"
+constant     = "#E0828D"  # upstream orange
+number       = "#AF98E6"  # upstream boolean
+comment      = "#5E6173"  # upstream comment
+operator     = "#7C7E8C"  # upstream gray_punc
+punctuation  = "#7C7E8C"  # upstream gray_punc
+variable     = "#D7D7D7"  # upstream fg
+member       = "#BDA9D4"  # upstream pink/lavender
+special      = "#BDA9D4"  # upstream pink/lavender
+namespace    = "#8DBBD3"  # upstream blue_type
+
+[ansi]
+# From upstream terminal/ghostty/oh-lucy.conf.
+c0  = "#272932"
+c1  = "#E85A84"
+c2  = "#94DD8E"
+c3  = "#E9D26C"
+c4  = "#7EB7E6"
+c5  = "#D895C7"
+c6  = "#89BEB7"
+c7  = "#CFD0D7"
+c8  = "#272932"
+c9  = "#E85A84"
+c10 = "#94DD8E"
+c11 = "#E9D26C"
+c12 = "#7EB7E6"
+c13 = "#D895C7"
+c14 = "#89BEB7"
+c15 = "#DFE0EA"
+fg  = "#DFE0EA"  # upstream terminal fg (brighter than editor fg #D7D7D7)

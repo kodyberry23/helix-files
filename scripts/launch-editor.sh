@@ -6,24 +6,29 @@
 # sessions are alive at once, both helix instances try to bind the same
 # file - whoever started last wins, and the dispatcher in the other
 # session quietly delivers commands to the wrong helix. The fix is to
-# derive a session-scoped path from $ZELLIJ_SESSION_NAME and pass it via
-# HELIX_SOCKET_PATH, which helix's listener honors. The matching
-# dispatch-to-editor.sh / helix-send.sh derive the same path on the
-# sender side, so messages always land in the same session.
+# derive a session-scoped path (helix_socket_path in lib/common.sh) and
+# pass it via HELIX_SOCKET_PATH, which helix's listener honors. The
+# matching dispatch-to-editor.sh / helix-send.sh use the same helper on
+# the sender side, so messages always land in the same session.
 #
 # Pre-rming the file before bind handles the EADDRINUSE case after a
 # crashed helix or a zellij session that didn't clean up.
 
 set -euo pipefail
 
-session=${ZELLIJ_SESSION_NAME:-default}
-# Strip anything that's not safe (zellij sanitizes already, but defensive).
-session=${session//[^A-Za-z0-9_-]/_}
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 
-base_dir=${XDG_RUNTIME_DIR:-/tmp}/helix
-mkdir -p "$base_dir"
-sock="$base_dir/${session}.sock"
+sock="$(helix_socket_path)"
+mkdir -p "$(dirname "$sock")"
 rm -f "$sock"
-
 export HELIX_SOCKET_PATH="$sock"
+
+# Sidebar follow (helix local patch): tell helix where the treelix reveal
+# socket lives so it pushes `reveal-follow <path>` on every focused-buffer
+# change — the sidebar then always shows the active file, no matter how it
+# was opened (helix's own picker, :open, goto commands, ...). Unset/missing
+# socket is harmless: helix ignores send failures, and a stock hx ignores
+# the variable entirely.
+export TREELIX_SOCKET_PATH="$(treelix_socket_path)"
+
 exec hx "$@"

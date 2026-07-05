@@ -17,6 +17,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/lib/common.sh"
 
 REPO_ROOT="${HELIX_FILES:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+# Theme helpers (needs REPO_ROOT). zshrc_block interpolates the active
+# theme's colors, so even --only-zshrc depends on this.
+. "$SCRIPT_DIR/lib/theme.sh"
 ZSHRC="$HOME/.zshrc"
 # Distinct from the `dotfiles managed block` markers so this block can
 # coexist with the user's other dotfiles repo without clobbering it.
@@ -50,6 +53,10 @@ What it does:
      the Ghostty cask
   3. Symlinks ~/.config/{helix,zellij,treelix,mise,ghostty,oh-my-posh,zsh-helix-mode}
      -> <repo>/<name>
+  3b. Applies the theme system (scripts/apply-theme.sh): creates
+     ~/.config/helix-files.toml with defaults if missing, renders every
+     themes/<name>.toml through themes/templates/* into the per-app theme
+     files, and points helix/zellij/ghostty/treelix at the active theme
   4. Runs `mise install` to fetch runtimes / LSPs / formatters
   5. Builds Helix from source at ~/projects/helix - clones the kodyberry23/helix
      fork's `local-patches` branch (PR #13896 socket + PR #13963 auto-reload
@@ -60,10 +67,11 @@ What it does:
   5c. Installs zellij pinned to a known-good version via cargo (NOT brew):
      brew's 0.44.3 broke terminal transparency - see lib/common.sh
   6. Adds a managed block to ~/.zshrc with: mise activate, ~/.cargo/bin on
-     PATH, HELIX_RUNTIME, Nord Aurora FZF colors + key bindings, zoxide
+     PATH, HELIX_RUNTIME, theme-driven FZF + zsh-helix-mode colors, zoxide
      init, oh-my-posh init, the `hx()` wrapper that stamps a stable pane
-     title, and the `hs` sessionizer alias. Replaces an existing
-     helix-files block if present; leaves other managed blocks alone.
+     title, and the `hs` sessionizer / `hft` theme-switch aliases.
+     Replaces an existing helix-files block if present; leaves other
+     managed blocks alone.
 
 Usage:
   scripts/setup.sh              actually make changes
@@ -235,13 +243,15 @@ fi
 # `hx` uses HELIX_RUNTIME first, then falls back to compiled-in defaults.
 export HELIX_RUNTIME="$HOME/projects/helix/runtime"
 
-# fzf - Deep Nord Aurora colors and ergonomic defaults. These exports
+# fzf - active helix-files theme colors (interpolated at stamp time by
+# setup.sh from themes/<active>.toml) and ergonomic defaults. These exports
 # replace any previous FZF_* values, so the last block to define them wins.
+# bg:-1 / gutter:-1 keep the terminal-default background (transparency).
 export FZF_DEFAULT_OPTS="
-  --color=bg:-1,bg+:-1,gutter:-1,fg:#D8DEE9,fg+:#ECEFF4
-  --color=hl:#74BCD9,hl+:#D97757,header:#74BCD9,info:#DDB867
-  --color=prompt:#74BCD9,pointer:#D97757,marker:#8DBC6E,spinner:#74BCD9
-  --color=border:#4F5870
+  --color=bg:-1,bg+:-1,gutter:-1,fg:{{ui.fg}},fg+:{{ui.fg_bright}}
+  --color=hl:{{ui.accent}},hl+:{{colors.orange}},header:{{ui.accent}},info:{{colors.yellow}}
+  --color=prompt:{{ui.accent}},pointer:{{colors.orange}},marker:{{colors.green}},spinner:{{ui.accent}}
+  --color=border:{{ui.fg_muted}}
   --prompt='∼ ' --pointer='▶' --marker='✓'
   --layout='reverse' --border='rounded' --height='60%'
   --preview-window='border-rounded'
@@ -286,10 +296,11 @@ if command -v zoxide >/dev/null 2>&1; then
 	eval "$(zoxide init zsh)"
 fi
 
-# oh-my-posh prompt (nord-aurora theme). POSH_PID is exported by `init zsh`,
-# so this is a no-op if a previous block already initialized the prompt.
+# oh-my-posh prompt (active helix-files theme). POSH_PID is exported by
+# `init zsh`, so this is a no-op if a previous block already initialized
+# the prompt.
 if [[ -z ${POSH_PID:-} ]] && command -v oh-my-posh >/dev/null 2>&1; then
-	eval "$(oh-my-posh init zsh --config "$HOME/.config/oh-my-posh/nord-aurora.omp.json")"
+	eval "$(oh-my-posh init zsh --config "$HOME/.config/oh-my-posh/{{meta.name}}.omp.json")"
 fi
 
 # zsh-helix-mode - Helix-style modal line editor in zsh.
@@ -303,19 +314,32 @@ fi
 if (( ! ${+functions[__zhm_mode_normal]} )) && [[ -f "$HOME/.config/zsh-helix-mode/zsh-helix-mode.plugin.zsh" ]]; then
 	export ZHM_CLIPBOARD_PIPE_CONTENT_TO="pbcopy"
 	export ZHM_CLIPBOARD_READ_CONTENT_FROM="pbpaste"
-	# Override ZHM cursor colour to frost1 (matches Helix / Ghostty cursor
-	# colours). Shape differs per mode: \e[2 q = steady block, \e[5 q =
-	# blinking beam. These must be set BEFORE sourcing - the plugin uses `:=`.
+	# Override ZHM cursor colour to the theme's cursor role (matches Helix /
+	# Ghostty cursor colours; interpolated at stamp time). Shape differs per
+	# mode: \e[2 q = steady block, \e[5 q = blinking beam. These must be set
+	# BEFORE sourcing - the plugin uses `:=`.
 	# Placeholder is __SHAPE__ rather than %s because zsh's `${var//%s/N}`
 	# parameter expansion silently fails to match `%s` (treats `%` specially
 	# in patterns regardless of EXTENDED_GLOB), leaving a literal `\e[%s q`
 	# in the cursor escape - invalid DECSCUSR, so the cursor shape never
 	# updates per mode. Alphanumeric placeholder sidesteps the quirk.
-	__zhm_cursor=$'\e[0m\e[__SHAPE__ q\e]12;#74BCD9\a'
+	__zhm_cursor=$'\e[0m\e[__SHAPE__ q\e]12;{{ui.cursor}}\a'
 	export ZHM_CURSOR_NORMAL=${__zhm_cursor//__SHAPE__/2}
 	export ZHM_CURSOR_INSERT=${__zhm_cursor//__SHAPE__/5}
 	export ZHM_CURSOR_SELECT=${__zhm_cursor//__SHAPE__/2}
 	unset __zhm_cursor
+	# ZHM's highlight-based cursor/selection styles (zle region_highlight
+	# syntax, read live per redraw). Without these the plugin's Catppuccin
+	# defaults leak through. Cursor styles match {{ui.cursor}} in all modes -
+	# mode is signaled by cursor SHAPE here, same convention as above;
+	# secondary (multi-)cursors use the muted border colour.
+	export ZHM_STYLE_CURSOR_NORMAL="fg={{ui.bg}},bg={{ui.cursor}}"
+	export ZHM_STYLE_CURSOR_INSERT="fg={{ui.bg}},bg={{ui.cursor}}"
+	export ZHM_STYLE_CURSOR_SELECT="fg={{ui.bg}},bg={{ui.cursor}}"
+	export ZHM_STYLE_OTHER_CURSOR_NORMAL="fg={{ui.bg}},bg={{ui.fg_muted}}"
+	export ZHM_STYLE_OTHER_CURSOR_INSERT="fg={{ui.bg}},bg={{ui.fg_muted}}"
+	export ZHM_STYLE_OTHER_CURSOR_SELECT="fg={{ui.bg}},bg={{ui.fg_muted}}"
+	export ZHM_STYLE_SELECTION="fg={{ui.fg_bright}},bg={{ui.bg_highlight}}"
 	source "$HOME/.config/zsh-helix-mode/zsh-helix-mode.plugin.zsh"
 	# Start each shell in normal mode. __zhm_mode_normal does the full
 	# switch: keymap → hxnor, ZHM_MODE=normal, and emits the block-cursor
@@ -356,13 +380,23 @@ typeset -ga precmd_functions preexec_functions
 # this via launch-editor.sh's per-session path + pre-rm; give ad-hoc panes a
 # per-shell path (pre/post rm) so they never collide with it or each other.
 hx() {
-	local __proj __sock
+	local __proj __sock __tlx __session
 	__proj=$(git rev-parse --show-toplevel 2>/dev/null) || __proj=$PWD
 	printf '\e]0;hx %s\a' "${__proj##*/}"
 	__sock="${XDG_RUNTIME_DIR:-/tmp}/helix/hx-$$.sock"
 	mkdir -p "${__sock:h}"
 	rm -f "$__sock"
-	HELIX_SOCKET_PATH="$__sock" command hx "$@"
+	# Sidebar follow parity: inside zellij, point this ad-hoc hx at the
+	# session's treelix reveal socket (same derivation as
+	# scripts/lib/common.sh treelix_socket_path) so the sidebar follows
+	# files opened here too. Empty outside zellij = feature off.
+	__tlx=""
+	if [[ -n ${ZELLIJ:-} ]]; then
+		__session=${ZELLIJ_SESSION_NAME:-default}
+		__session=${__session//[^A-Za-z0-9_-]/_}
+		__tlx="${XDG_RUNTIME_DIR:-/tmp}/treelix/${__session}.sock"
+	fi
+	HELIX_SOCKET_PATH="$__sock" TREELIX_SOCKET_PATH="$__tlx" command hx "$@"
 	rm -f "$__sock"
 }
 
@@ -372,6 +406,7 @@ alias hs="__REPO__/scripts/sessionizer.sh"
 # helix-files self-management (pass-through args, e.g. `hfu --dry-run`)
 alias hfs="__REPO__/scripts/setup.sh"    # bootstrap / re-apply the dotfiles
 alias hfu="__REPO__/scripts/update.sh"   # update everything + clean stale artifacts
+alias hft="__REPO__/scripts/apply-theme.sh --set"  # switch theme - usage: hft <name>
 
 # zellij session helpers
 alias zls='zellij list-sessions'              # list sessions
@@ -386,7 +421,41 @@ alias zca='zellij kill-all-sessions --yes; zellij delete-all-sessions --yes'  # 
 # <<< helix-files managed block <<<
 EOF
 )
-	printf "%s" "${block//__REPO__/$REPO_ROOT}"
+	# Substitute the theme colors by rendering the block through the SAME
+	# {{section.key}} engine the app templates use (render_template): the
+	# substitution map is the theme file itself, so there is no hand-paired
+	# placeholder list to drift, and an unknown or leftover token fails
+	# loudly instead of silently stamping broken colors into ~/.zshrc.
+	# NOT bash ${var//...}: pattern substitution over a multi-KB UTF-8
+	# string is pathologically slow on bash 3.2 (~0.8s PER substitution on
+	# this block - 11 of them cost ~9s); __REPO__ goes through awk for the
+	# same reason. Explicit `return 1`s matter: `set -e` is suppressed
+	# inside $(...) and this function runs as new_block=$(zshrc_block).
+	# NOTE: prints ONLY the block - no ok/info logging in here (and
+	# ensure_user_config runs in main, not here).
+	local tname tfile tmp_in tmp_out
+	tname=$(active_theme)
+	tfile="$THEMES_DIR/$tname.toml"
+	if [[ ! -f $tfile ]]; then
+		# Fall back to the shipped default so a bad theme NAME can't leave
+		# ~/.zshrc unstamped; a broken theme FILE still fails loudly below.
+		tname="nord-aurora"
+		tfile="$THEMES_DIR/nord-aurora.toml"
+	fi
+	tmp_in=$(mktemp) || return 1
+	tmp_out=$(mktemp) || { rm -f "$tmp_in"; return 1; }
+	printf '%s' "$block" \
+		| awk -v repo="$REPO_ROOT" '{ gsub(/__REPO__/, repo); print }' > "$tmp_in"
+	# DRY_RUN=false: rendering here is an in-memory step of COMPUTING the
+	# block (setup_managed_block does its own dry-run gating); letting the
+	# render no-op in dry-run would diff raw tokens against ~/.zshrc.
+	if ! DRY_RUN=false render_template "$tmp_in" "$tfile" "$tmp_out"; then
+		rm -f "$tmp_in" "$tmp_out"
+		err "cannot stamp ~/.zshrc: theme '$tname' is missing a value the zshrc block needs (see token error above)"
+		return 1
+	fi
+	cat "$tmp_out"
+	rm -f "$tmp_in" "$tmp_out"
 }
 
 # Install/update a managed block in $1 using the body emitted by $2.
@@ -425,6 +494,11 @@ setup_managed_block() {
 
 		# BSD awk on macOS rejects embedded newlines in `-v var=val`, so we
 		# pass the new block via a file and slurp it inside the END action.
+		# Blank runs are buffered and only flushed when real content follows,
+		# so the blank line before the removed block (left by the original
+		# append) doesn't survive and stack up one-per-replace - without
+		# this, every content change grows a run of empty lines above the
+		# block (theme switches restamp the block, so this matters now).
 		local tmp new_file
 		tmp=$(mktemp)
 		new_file=$(mktemp)
@@ -432,7 +506,9 @@ setup_managed_block() {
 		awk -v s="$MARKER_START" -v e="$MARKER_END" -v new_file="$new_file" '
 			$0 ~ s { skip=1; next }
 			$0 ~ e { skip=0; next }
-			!skip  { print }
+			skip   { next }
+			/^$/   { pending++; next }
+			{ while (pending > 0) { print ""; pending-- }; print }
 			END {
 				printf "\n"
 				while ((getline line < new_file) > 0) print line
@@ -448,6 +524,22 @@ setup_managed_block() {
 		fi
 		printf "\n%s\n" "$new_block" >> "$target"
 		ok "added"
+	fi
+}
+
+# Render + activate the configured theme (themes/*.toml -> per-app files
+# and pointer lines). apply-theme.sh also re-stamps the zshrc block via
+# --only-zshrc; the setup_managed_block call later in main() then no-ops.
+# Callers must tolerate failure (main uses `|| theme_failures=1`): a
+# cosmetic theming problem - e.g. a hand-edited pointer anchor - must not
+# abort the bootstrap before the tool installs, mirroring how
+# symlink_configs failures are collected and reported at the end.
+apply_theme_configs() {
+	info "theme (scripts/apply-theme.sh)"
+	if $DRY_RUN; then
+		bash "$SCRIPT_DIR/apply-theme.sh" --dry-run
+	else
+		bash "$SCRIPT_DIR/apply-theme.sh"
 	fi
 }
 
@@ -674,9 +766,12 @@ prune_mise_helix() {
 
 main() {
 	# --only-zshrc: re-stamp the managed block and exit. Invoked by
-	# update.sh so a `git pull` of this repo also refreshes the live
-	# ~/.zshrc, preventing the block from drifting behind setup.sh edits.
+	# update.sh and apply-theme.sh so a `git pull` or theme switch also
+	# refreshes the live ~/.zshrc, preventing drift behind setup.sh edits.
+	# ensure_user_config first: zshrc_block reads the active theme from
+	# ~/.config/helix-files.toml.
 	if $ONLY_ZSHRC; then
+		ensure_user_config
 		setup_managed_block "$ZSHRC" zshrc_block
 		return
 	fi
@@ -686,6 +781,9 @@ main() {
 
 	local symlink_failures=0
 	symlink_configs || symlink_failures=$?
+
+	local theme_failures=0
+	apply_theme_configs || theme_failures=1
 
 	mise_install
 	install_helix_nightly
@@ -699,6 +797,11 @@ main() {
 	if [[ $symlink_failures -gt 0 ]]; then
 		err "completed with $symlink_failures symlink problem(s) above"
 		err "resolve those and re-run setup.sh"
+		exit 1
+	fi
+	if [[ $theme_failures -gt 0 ]]; then
+		err "theme apply failed (see above) - tools were still installed/updated"
+		err "fix the theme issue and re-run scripts/apply-theme.sh"
 		exit 1
 	fi
 	if $DRY_RUN; then

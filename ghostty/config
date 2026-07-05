@@ -1,11 +1,11 @@
 # By default Reload config with shft + cmd + ,
-config-file = themes/nord-aurora
+config-file = themes/oh-lucy-evening
 # Slight transparency over the Polar Night background; blur softens the
 # desktop behind it without washing the foreground out. `background-blur`
 # accepts a nonnegative integer (intensity) or `true`/`false`; 20 is the
 # default `true` value per the docs.
-background-opacity = 0.92
-background-blur = 20
+background-opacity = 1.0
+background-blur = 0
 maximize = true
 font-family = JetBrainsMonoNL Nerd Font
 font-size = 12

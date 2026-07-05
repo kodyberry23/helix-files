@@ -1,11 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
   "palette": {
-    "accent": "#74BCD9",
-    "accentDim": "#5F8FBF",
-    "yellow": "#DDB867",
-    "green": "#8DBC6E",
-    "red": "#D04E5C"
+    "accent": "#FF7DA3",
+    "accentDim": "#8BB8D0",
+    "yellow": "#EFD472",
+    "green": "#7EC49D",
+    "red": "#D95555"
   },
   "blocks": [
     {

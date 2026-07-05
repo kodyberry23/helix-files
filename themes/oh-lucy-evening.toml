@@ -1,0 +1,82 @@
+# Oh Lucy Evening - warm plum-charcoal dark theme, ported from
+# https://github.com/yazeed1s/oh-lucy.nvim (lua/oh-lucy-evening/colors.lua +
+# terminal/ghostty/oh-lucy-evening.conf).
+#
+# Canonical theme definition - see themes/nord-aurora.toml for schema notes.
+# Rendered into the per-app configs by scripts/apply-theme.sh.
+#
+# Curation notes (the only non-mechanical choices; everything else is
+# straight from upstream):
+#   - Upstream's evening terminal palette maps cyan AND magenta to the same
+#     lavender #BDA9D4, and ANSI 0/8 to a warm LIGHT gray #938884 - ported
+#     as-is for fidelity. If the cyan/magenta collision annoys, swap
+#     c6/c14 to #8BB8D0.
+#   - Statusline uses this setup's "recessed darker strip" convention
+#     (ui.bg_dark = upstream `dark` #1A191E), not upstream's light gray.
+#   - Upstream defines no evening-specific terminal selection; selection
+#     uses upstream cl_bg/selection-adjacent tones (first-pass curation).
+
+[meta]
+name = "oh-lucy-evening"
+
+[ui]
+bg            = "#1E1D23"  # upstream bg
+bg_dark       = "#1A191E"  # upstream `dark` - recessed strip
+bg_surface    = "#29292E"  # upstream black1 / CursorLine bg
+bg_highlight  = "#29292E"  # upstream visual_select_bg
+bg_highlight2 = "#524A51"  # upstream line_fg / cl_bg, strongest surface step
+fg            = "#DED7D0"  # upstream fg
+fg_bright     = "#DFE0EA"  # upstream cursor tone (evening white == fg upstream)
+fg_muted      = "#7F737D"  # upstream gray2 / non_text
+cursor        = "#DFE0EA"  # upstream ghostty cursor-color
+accent        = "#FF7DA3"  # upstream red_key_w - the signature pink
+accent_alt    = "#7EC49D"  # upstream green_func
+accent_dim    = "#8BB8D0"  # upstream blue_type
+folder        = "#8BB8D0"  # treelix directories + folder icons - blue, NOT the pink
+                           # accent: pink/red folders read as errors in a file tree
+selection_bg  = "#524A51"  # warm plum selection (see curation notes)
+selection_fg  = "#DFE0EA"
+
+[colors]
+red    = "#D95555"  # upstream red_err
+orange = "#E39A65"  # upstream orange_wr
+yellow = "#EFD472"  # upstream yellow
+green  = "#7EC49D"  # upstream green
+purple = "#B898DD"  # upstream boolean
+blue   = "#8BB8D0"  # upstream blue_type
+
+[syntax]
+keyword      = "#FF7DA3"  # upstream red_key_w
+function     = "#7EC49D"  # upstream green_func
+string       = "#EFD472"  # upstream yellow
+type         = "#8BB8D0"  # upstream blue_type
+type_builtin = "#8BB8D0"
+constant     = "#E0828D"  # upstream orange
+number       = "#B898DD"  # upstream boolean
+comment      = "#686069"  # upstream comment
+operator     = "#938884"  # upstream gray_punc
+punctuation  = "#938884"  # upstream gray_punc
+variable     = "#DED7D0"  # upstream fg
+member       = "#BDA9D4"  # upstream pink/lavender
+special      = "#BDA9D4"  # upstream pink/lavender
+namespace    = "#8BB8D0"  # upstream blue_type
+
+[ansi]
+# From upstream terminal/ghostty/oh-lucy-evening.conf.
+c0  = "#938884"
+c1  = "#FF7DA3"
+c2  = "#7EC49D"
+c3  = "#EFD472"
+c4  = "#8BB8D0"
+c5  = "#BDA9D4"
+c6  = "#BDA9D4"
+c7  = "#DED7D0"
+c8  = "#938884"
+c9  = "#FF7DA3"
+c10 = "#7EC49D"
+c11 = "#EFD472"
+c12 = "#8BB8D0"
+c13 = "#BDA9D4"
+c14 = "#BDA9D4"
+c15 = "#DED7D0"
+fg  = "#DED7D0"
