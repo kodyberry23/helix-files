@@ -25,24 +25,28 @@ clipboard-provider = "pasteboard"
 # repos. Safe enough when you only open projects you authored.
 insecure = true
 
-# Auto-reload externally-modified files. Patched in via helix-editor/helix
-# PR #13963 with a local tweak that silences the periodic reload (see
-# README for build provenance).
-# - focus-gained: on terminal refocus, silently reload any open buffer
-#   whose mtime advanced.
-# - periodic.enable + interval: same check on a timer.
-# Unsaved buffers are filtered out before reload, so in-flight edits
-# can never be clobbered - they just stay invisible to the check until
-# you save (which is why the auto-save block above matters).
+# Auto-reload externally-modified files AND refresh the git diff gutter
+# on git state changes. Patched in via helix-editor/helix PR #14544
+# (filesentry file watcher) plus a local commit that extends the VCS
+# triggers to refs/**, packed-refs and reftable - without it the gutter
+# only refreshes on branch switch, not on commit/amend/reset (those move
+# the branch ref, never .git/HEAD). See README for build provenance.
+# - enable: watcher-driven reload of clean buffers (silent, statusline
+#   message). Unsaved buffers are never clobbered.
+# - prompt-if-modified = false: a dirty buffer whose file changed on disk
+#   gets a statusline warning instead of a modal prompt.
+# - poll: mtime backstop for files outside the watched workspace
+#   (checked on focus-gained too); watched files react instantly.
 #
 # NOTE: this MUST come after every plain `[editor]` key (above) - once a
 # `[editor.<sub>]` table header opens, all subsequent unprefixed keys
 # belong to the sub-table, not to `[editor]`. Moving `insecure` etc.
 # below this line silently mis-scopes them and helix ignores the values.
 [editor.auto-reload]
-focus-gained = true
-periodic.enable = true
-periodic.interval = 3000
+enable = true
+prompt-if-modified = false
+poll.enable = true
+poll.interval = 30000
 
 [editor.gutters]
 # Default layout omits a trailing spacer, so the diff stripe sits flush
