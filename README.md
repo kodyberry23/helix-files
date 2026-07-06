@@ -106,17 +106,17 @@ Stock upstream Helix lacks two features this repo uses:
 - **[PR #14544](https://github.com/helix-editor/helix/pull/14544)** - filesentry file watcher: auto-reload on external file changes AND git-aware diff-gutter refresh. The `[editor.auto-reload]` block in `helix/config.toml` configures it. Supersedes the old [PR #13963](https://github.com/helix-editor/helix/pull/13963) mtime-poll patch (closed upstream in favor of #14544).
 - **Local patch: extended VCS watch triggers** - stock #14544 only watches `.git/HEAD`, which moves on branch switch but *not* on commit/amend/reset (those move `refs/heads/<branch>`, verified empirically). The local commit extends the triggers to `refs/**`, `packed-refs`, and `reftable` (matching gitsigns.nvim / VS Code / Zed practice) so the diff gutter clears within a second of an external commit. Candidate for upstreaming as #14544 review feedback.
 
-The patches live on the `local-patches` branch of the fork at [github.com/kodyberry23/helix](https://github.com/kodyberry23/helix) (base master `7eb1a28` + socket/window-pick/sidebar-follow patches + merged PR #14544 + the VCS-trigger extension). `setup.sh` clones that branch directly into `~/projects/helix` and adds `upstream` as a second remote pointing at `helix-editor/helix`, so syncing from upstream is a one-liner:
+The patches live on the `local-patches` branch of the fork at [github.com/kodyberry23/helix](https://github.com/kodyberry23/helix) (base master `7eb1a28` + socket/window-pick/sidebar-follow patches + merged PR #14544 + the VCS-trigger extension). The fork's `master` stays a pristine mirror of `helix-editor/helix` so it's always obvious which commits are local. `setup.sh` clones `local-patches` directly into `~/projects/helix` and adds `upstream` as a second remote pointing at `helix-editor/helix`.
+
+Syncing is all `update.sh`'s job - no manual git needed:
 
 ```sh
-cd ~/projects/helix
-git fetch upstream master
-git rebase upstream/master
-git push --force-with-lease origin local-patches
-cargo install --path helix-term --locked --force
+hfu                  # sync local-patches from the fork + rebuild if it moved
+hfu --sync-upstream  # additionally: merge upstream/master in, rebuild, push back
 ```
 
-`update.sh` pulls fork updates on the `local-patches` branch (so changes pushed from another machine land here) and reports whenever `upstream/master` drifts ahead, so you rebase deliberately.
+- **Plain `hfu`** fast-forwards `local-patches` from the fork (so changes pushed from the other machine land here). If the fork's branch history was rewritten by a deliberate force-push, it saves the old local tip to a `backup/local-patches-<sha>` branch and hard-resets - the second machine never needs manual surgery. When `upstream/master` has new commits it says so and points at `--sync-upstream`.
+- **`hfu --sync-upstream`** *merges* `upstream/master` into `local-patches` (merge, never rebase: append-only history keeps a plain pull working on every machine), refreshes the `master` mirror, rebuilds, and pushes both branches back to the fork **only after the build succeeds** - the other machine can never pull a merge that doesn't compile. On merge conflicts it aborts cleanly, leaves the checkout untouched, and tells you to resolve deliberately.
 
 ## Updating
 

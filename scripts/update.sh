@@ -14,12 +14,18 @@
 #      line in ~/.zshrc (which errors on new shells after broot is removed).
 #   2. Brew packages we installed: brew upgrade (with auto-update disabled)
 #   3. mise-managed tools: mise upgrade (runtimes, LSPs, formatters)
-#   4. Helix nightly: git pull + cargo install --path helix-term --locked.
+#   4. Helix nightly: git sync + cargo install --path helix-term --locked.
 #      Default checkout is the `local-patches` branch on the kodyberry23/helix
-#      fork (PR #13896 socket + PR #13963 auto-reload + local follow-ups).
-#      Pulls fork updates, fetches `upstream/master`, and reports drift
-#      so the user can rebase deliberately. Skips rebuild when HEAD didn't
-#      move.
+#      fork (PR #13896 socket + PR #14544 watcher auto-reload + VCS trigger
+#      extension + window-pick/sidebar-follow). Syncs from origin (the fork):
+#      fast-forwards when possible, and when origin's history was rewritten
+#      (a deliberate force-push from the other machine) it saves the old tip
+#      to a backup/ branch and hard-resets - no manual surgery needed on the
+#      second machine. With --sync-upstream it additionally MERGES
+#      upstream/master into local-patches (merge, never rebase: append-only
+#      history keeps every machine's plain pull working), refreshes the
+#      pristine `master` mirror, and pushes both back to the fork after a
+#      successful build. Skips rebuild when HEAD didn't move.
 #   4b. treelix (sidebar file tree): download the latest prebuilt release
 #      binary if newer (or git pull + rebuild when TREELIX_FROM_SOURCE=1).
 #   5. zsh-helix-mode: git pull --ff-only
@@ -40,10 +46,11 @@
 # so themes and the zshrc block always come from the just-pulled tree.
 #
 # Usage:
-#   scripts/update.sh             # actually update
-#   scripts/update.sh --dry-run   # preview without changing anything
-#   scripts/update.sh -n          # same as --dry-run
-#   scripts/update.sh -h | --help # usage
+#   scripts/update.sh                  # actually update
+#   scripts/update.sh --sync-upstream  # also merge helix upstream/master in
+#   scripts/update.sh --dry-run        # preview without changing anything
+#   scripts/update.sh -n               # same as --dry-run
+#   scripts/update.sh -h | --help      # usage
 
 set -euo pipefail
 
@@ -51,7 +58,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/lib/common.sh"
 
 REPO_ROOT="${HELIX_FILES:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-HELIX_SRC="$HOME/projects/helix"
+# Env-overridable (like HELIX_FILES above) so tests can point update_helix
+# at a sandbox checkout instead of the real one.
+HELIX_SRC="${HELIX_SRC:-$HOME/projects/helix}"
 TREELIX_SRC="$HOME/projects/treelix"
 ZHM_DIR="$REPO_ROOT/zsh-helix-mode"
 
@@ -66,20 +75,37 @@ Updates:
      orphaned sockets)
   2. Brew packages we manage (brew upgrade, no auto-update)
   3. mise-managed tools (runtimes, LSPs, formatters)
-  4. Helix nightly (pull on master, or fetch + report-only on local-patches)
+  4. Helix nightly (sync local-patches from the fork - fast-forward, or
+     backup + reset when origin was force-pushed; rebuild if HEAD moved.
+     With --sync-upstream: also merge upstream/master into local-patches
+     and push back to the fork after a successful build)
   5. zsh-helix-mode (git pull)
   5b. Theme system (apply-theme.sh: regenerate + re-point per-app themes;
      also re-stamps the ~/.zshrc managed block)
 
 Usage:
-  scripts/update.sh             actually update
-  scripts/update.sh --dry-run   preview without changing anything
-  scripts/update.sh -n          same as --dry-run
-  scripts/update.sh -h | --help this message
+  scripts/update.sh                  actually update
+  scripts/update.sh --sync-upstream  also merge helix upstream/master in
+  scripts/update.sh --dry-run        preview without changing anything
+  scripts/update.sh -n               same as --dry-run
+  scripts/update.sh -h | --help      this message
 USAGE
 }
 
-parse_dry_run_args "$@"
+# --sync-upstream is our own flag; strip it before handing the rest to the
+# shared parser (which hard-errors on anything it doesn't know).
+SYNC_UPSTREAM=false
+_passthrough=()
+for _arg in "$@"; do
+	if [[ "$_arg" == "--sync-upstream" ]]; then
+		SYNC_UPSTREAM=true
+	else
+		_passthrough+=("$_arg")
+	fi
+done
+# ${arr[@]+...} guard: expanding an empty array errors under `set -u` on
+# the bash 3.2 macOS ships.
+parse_dry_run_args ${_passthrough[@]+"${_passthrough[@]}"}
 
 dry_run_banner "$DRY_RUN"
 
@@ -157,10 +183,61 @@ update_brew_packages() {
 
 # ─── 4. Helix nightly ─────────────────────────────────────────────────────
 # Handles two checkout modes:
-#   - local-patches (default, fork-tracked): fast-forward from origin
-#     (the kodyberry23/helix fork) and report if upstream master has
-#     drifted, so the user can rebase deliberately
+#   - local-patches (default, fork-tracked): sync from origin (the
+#     kodyberry23/helix fork) - fast-forward, or backup + reset when the
+#     branch history was rewritten on the other machine. With
+#     --sync-upstream, also merge upstream/master in and push back.
 #   - master (vanilla): fast-forward + rebuild if HEAD moved
+
+# Merge upstream/master into local-patches. Called from update_helix with
+# a clean tree, on local-patches, after the origin sync. MERGE, never
+# rebase: rebasing rewrites local-patches, which forces a push --force and
+# breaks the other machine's plain pull; merge history is append-only so
+# every machine fast-forwards. Also refreshes (or creates - setup.sh
+# clones only local-patches) the pristine `master` mirror branch. Sets
+# HELIX_UPSTREAM_MERGED=true when a merge commit was created, so
+# update_helix pushes only after the build succeeds. On conflict: abort,
+# leave the repo exactly as it was, and say how to resolve deliberately.
+HELIX_UPSTREAM_MERGED=false
+sync_helix_upstream() {
+	HELIX_UPSTREAM_MERGED=false
+
+	# Keep the local `master` mirror at upstream. Create it when missing
+	# (setup.sh's `git clone --branch local-patches` makes no local
+	# master); only force-move it while it is a pristine ancestor - if
+	# someone ever committed to master directly, refuse to discard that.
+	if ! git -C "$HELIX_SRC" rev-parse -q --verify refs/heads/master >/dev/null; then
+		git -C "$HELIX_SRC" branch master upstream/master >/dev/null 2>&1 \
+			&& ok "created local 'master' mirror of upstream/master" \
+			|| warn "could not create 'master' mirror (upstream/master not fetched?)"
+	elif git -C "$HELIX_SRC" merge-base --is-ancestor master upstream/master 2>/dev/null; then
+		git -C "$HELIX_SRC" branch -f master upstream/master >/dev/null
+	else
+		warn "local 'master' is not an ancestor of upstream/master; mirror not updated"
+	fi
+
+	local new
+	new=$(git -C "$HELIX_SRC" rev-list --count HEAD..upstream/master 2>/dev/null || echo 0)
+	if [[ ${new:-0} -eq 0 ]]; then
+		ok "local-patches already contains upstream/master"
+		# Keep the fork's master mirror current even on no-op runs
+		# (best-effort: pure upstream commits, always fast-forward).
+		git -C "$HELIX_SRC" push origin master >/dev/null 2>&1 || true
+		return 0
+	fi
+
+	info "  merging $new upstream commit(s) into local-patches"
+	if git -C "$HELIX_SRC" merge --no-edit upstream/master >/dev/null; then
+		HELIX_UPSTREAM_MERGED=true
+		ok "merged upstream/master into local-patches"
+	else
+		git -C "$HELIX_SRC" merge --abort >/dev/null 2>&1 || true
+		warn "upstream merge conflicts with the local patches - aborted, repo left untouched"
+		warn "  resolve deliberately:  cd $HELIX_SRC && git merge upstream/master"
+	fi
+	return 0
+}
+
 update_helix() {
 	info "Helix nightly"
 	if [[ ! -d "$HELIX_SRC/.git" ]]; then
@@ -169,7 +246,8 @@ update_helix() {
 	fi
 
 	if $DRY_RUN; then
-		would "fetch origin + upstream; pull local-patches or master depending on branch"
+		would "fetch origin + upstream; sync local-patches from origin (ff, or backup + reset if origin was rewritten)"
+		$SYNC_UPSTREAM && would "merge upstream/master into local-patches; push branch + master mirror after a successful build"
 		would "cargo install --path $HELIX_SRC/helix-term --locked (only if HEAD moved)"
 		return
 	fi
@@ -186,45 +264,137 @@ update_helix() {
 
 	# `origin` is the kodyberry23/helix fork (set up by setup.sh); `upstream`
 	# is helix-editor/helix. Fetch both so we can both pull fork changes and
-	# compare against upstream master for rebase prompts.
-	git -C "$HELIX_SRC" fetch origin >/dev/null 2>&1 || true
+	# compare against upstream master. A failed origin fetch must be loud:
+	# silently comparing against a stale ref would report "already built"
+	# while the other machine's push never actually landed here.
+	local origin_fetched=true
+	if ! git -C "$HELIX_SRC" fetch origin >/dev/null 2>&1; then
+		origin_fetched=false
+		warn "fetch from the fork failed (offline?); skipping helix sync this run"
+	fi
 	git -C "$HELIX_SRC" fetch upstream master >/dev/null 2>&1 || true
 	local branch
 	branch=$(git -C "$HELIX_SRC" branch --show-current)
 
-	# local-patches: tracked on the fork. Pull --ff-only from origin (the
-	# fork) so changes pushed from another machine land here; then check
-	# upstream/master for drift and report if a rebase is offered.
+	# local-patches: tracked on the fork. Sync from origin (the fork) so
+	# changes pushed from another machine land here, then optionally merge
+	# upstream/master in (--sync-upstream).
 	if [[ "$branch" == "local-patches" ]]; then
-		local before_head
-		before_head=$(git -C "$HELIX_SRC" rev-parse HEAD)
-		if git -C "$HELIX_SRC" pull --ff-only origin local-patches >/dev/null 2>&1; then
-			:
+		local need_push=false
+
+		# Sync cases against origin/local-patches (only with a fresh fetch -
+		# stale refs would misclassify):
+		#   behind only -> plain fast-forward
+		#   diverged, every local commit previously on the fork
+		#               -> origin's history was rewritten (a deliberate
+		#                  force-push from the other machine, e.g. a patch-
+		#                  stack rework). The tree is clean (checked above)
+		#                  and nothing local-only exists, so save the old
+		#                  tip to a backup/ branch and hard-reset - no
+		#                  manual surgery on the second machine.
+		#   diverged with local-only commits -> never auto-reset; report.
+		#   ahead only  -> local commits not pushed yet; keep them.
+		if $origin_fetched; then
+			local ahead behind
+			ahead=$(git -C "$HELIX_SRC" rev-list --count origin/local-patches..HEAD 2>/dev/null || echo 0)
+			behind=$(git -C "$HELIX_SRC" rev-list --count HEAD..origin/local-patches 2>/dev/null || echo 0)
+			if [[ ${behind:-0} -gt 0 && ${ahead:-0} -eq 0 ]]; then
+				if git -C "$HELIX_SRC" merge --ff-only origin/local-patches >/dev/null 2>&1; then
+					ok "fast-forwarded local-patches (+$behind commit(s) from the fork)"
+				else
+					warn "fast-forward from origin failed unexpectedly; skipping pull"
+				fi
+			elif [[ ${behind:-0} -gt 0 && ${ahead:-0} -gt 0 ]]; then
+				# Distinguish "fork history rewritten" from "genuine local
+				# work + new fork commits": resetting is safe only if HEAD
+				# was itself a past tip of the fork (or behind one), i.e.
+				# every local commit has been on origin/local-patches at
+				# some point. The remote-tracking ref's reflog records
+				# every value it has had on this machine.
+				local safe_to_reset=false entry
+				while IFS= read -r entry; do
+					if git -C "$HELIX_SRC" merge-base --is-ancestor HEAD "$entry" 2>/dev/null; then
+						safe_to_reset=true
+						break
+					fi
+				done < <(git -C "$HELIX_SRC" reflog show --format=%H origin/local-patches 2>/dev/null | head -50)
+				if $safe_to_reset; then
+					local backup
+					backup="backup/local-patches-$(git -C "$HELIX_SRC" rev-parse --short HEAD)"
+					git -C "$HELIX_SRC" branch -f "$backup" HEAD >/dev/null
+					git -C "$HELIX_SRC" reset --hard origin/local-patches >/dev/null
+					warn "origin/local-patches was rewritten (force-push); resynced this checkout to it"
+					warn "  previous local tip kept as branch '$backup' - delete it once all is well"
+				else
+					warn "local-patches and the fork have diverged and this checkout has"
+					warn "  local-only commits; not touching it. Reconcile manually:"
+					warn "  cd $HELIX_SRC && git log --oneline origin/local-patches..HEAD"
+				fi
+			elif [[ ${ahead:-0} -gt 0 ]]; then
+				if $SYNC_UPSTREAM; then
+					# --sync-upstream means "get everything in sync": push
+					# the local commits too (below, after a good build).
+					need_push=true
+					info "  local-patches is $ahead commit(s) ahead; will push after a successful build"
+				else
+					warn "local-patches is $ahead commit(s) ahead of the fork; push when ready:"
+					warn "  git -C $HELIX_SRC push origin local-patches"
+				fi
+			fi
+		fi
+
+		if $SYNC_UPSTREAM; then
+			sync_helix_upstream
+			if [[ "$HELIX_UPSTREAM_MERGED" == true ]]; then
+				need_push=true
+			fi
 		else
-			warn "fast-forward of local-patches from origin failed (diverged?); skipping pull"
+			local drift
+			drift=$(git -C "$HELIX_SRC" rev-list --count HEAD..upstream/master 2>/dev/null || echo 0)
+			if [[ ${drift:-0} -gt 0 ]]; then
+				info "  upstream/master has $drift new commit(s); take them with:  hfu --sync-upstream"
+			fi
 		fi
 
-		local behind
-		behind=$(git -C "$HELIX_SRC" rev-list --count HEAD..upstream/master 2>/dev/null || echo 0)
-		if [[ ${behind:-0} -gt 0 ]]; then
-			warn "upstream/master has $behind new commit(s) since local-patches diverged"
-			warn "  rebase manually:  cd $HELIX_SRC && git rebase upstream/master"
-			warn "  then push:        git push --force-with-lease origin local-patches"
-		fi
-
-		local after_head
-		after_head=$(git -C "$HELIX_SRC" rev-parse HEAD)
-		if [[ "$before_head" == "$after_head" ]] && has_cmd hx; then
+		# Rebuild when the installed binary wasn't built from HEAD. Compare
+		# the git hash hx embeds in --version (e.g. "helix 25.07.1
+		# (55d9030a)") instead of a before/after HEAD check: this also
+		# catches a previous run whose build FAILED after moving HEAD -
+		# there, HEAD never moves again but the binary is stale.
+		local head_full installed_sha rebuilt=false
+		head_full=$(git -C "$HELIX_SRC" rev-parse HEAD)
+		installed_sha=$({ hx --version 2>/dev/null || true; } | sed -nE 's/.*\(([0-9a-f]{7,40})\).*/\1/p')
+		if [[ -n "$installed_sha" && "$head_full" == "$installed_sha"* ]]; then
 			ok "already built at $(git -C "$HELIX_SRC" rev-parse --short HEAD)"
-			return
+		else
+			info "  rebuilding helix-term"
+			cargo install --path "$HELIX_SRC/helix-term" --locked --force
+			ok "rebuilt ($(git -C "$HELIX_SRC" rev-parse --short HEAD))"
+			rebuilt=true
 		fi
 
-		info "  rebuilding helix-term"
-		cargo install --path "$HELIX_SRC/helix-term" --locked --force
-		ok "rebuilt ($(git -C "$HELIX_SRC" rev-parse --short HEAD))"
-		warn "  restart open editor panes to load it - a running old helix still"
-		warn "  accepts socket dispatches but may lack :open-pick (sidebar picks"
-		warn "  would show 'no such command' and open nothing until restarted)"
+		# Push only with a binary that matches HEAD (just rebuilt, or
+		# already matching), so the other machine can never pull an
+		# upstream merge that doesn't build. (`set -e` aborts above on a
+		# failed build, leaving the merge local-only; the next
+		# --sync-upstream run retries the build and then pushes.) The
+		# master mirror is pushed separately, best-effort - a problem with
+		# it must never block the branch that matters.
+		if $need_push; then
+			if git -C "$HELIX_SRC" push origin local-patches >/dev/null 2>&1; then
+				ok "pushed local-patches to the fork"
+			else
+				warn "push to the fork failed (offline?); push manually:"
+				warn "  git -C $HELIX_SRC push origin local-patches"
+			fi
+			git -C "$HELIX_SRC" push origin master >/dev/null 2>&1 || true
+		fi
+
+		if $rebuilt; then
+			warn "  restart open editor panes to load it - a running old helix still"
+			warn "  accepts socket dispatches but may lack :open-pick (sidebar picks"
+			warn "  would show 'no such command' and open nothing until restarted)"
+		fi
 		return
 	fi
 
@@ -598,4 +768,8 @@ main() {
 	fi
 }
 
-main "$@"
+# Run main only when executed, not when sourced (tests source this file to
+# exercise individual update_* functions against sandbox checkouts).
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	main "$@"
+fi
