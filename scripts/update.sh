@@ -19,9 +19,10 @@
 #      fork (PR #13896 socket + PR #14544 watcher auto-reload + VCS trigger
 #      extension + window-pick/sidebar-follow). Syncs from origin (the fork):
 #      fast-forwards when possible, and when origin's history was rewritten
-#      (a deliberate force-push from the other machine) it saves the old tip
-#      to a backup/ branch and hard-resets - no manual surgery needed on the
-#      second machine. With --sync-upstream it additionally MERGES
+#      (a deliberate force-push from the other machine) it hard-resets to
+#      origin - no manual surgery needed on the second machine, and only
+#      when every local commit was already on the fork (the old tip stays
+#      in the reflog regardless). With --sync-upstream it additionally MERGES
 #      upstream/master into local-patches (merge, never rebase: append-only
 #      history keeps every machine's plain pull working), refreshes the
 #      pristine `master` mirror, and pushes both back to the fork after a
@@ -76,7 +77,7 @@ Updates:
   2. Brew packages we manage (brew upgrade, no auto-update)
   3. mise-managed tools (runtimes, LSPs, formatters)
   4. Helix nightly (sync local-patches from the fork - fast-forward, or
-     backup + reset when origin was force-pushed; rebuild if HEAD moved.
+     reset to origin when it was force-pushed; rebuild if HEAD moved.
      With --sync-upstream: also merge upstream/master into local-patches
      and push back to the fork after a successful build)
   5. zsh-helix-mode (git pull)
@@ -184,7 +185,7 @@ update_brew_packages() {
 # ─── 4. Helix nightly ─────────────────────────────────────────────────────
 # Handles two checkout modes:
 #   - local-patches (default, fork-tracked): sync from origin (the
-#     kodyberry23/helix fork) - fast-forward, or backup + reset when the
+#     kodyberry23/helix fork) - fast-forward, or reset to origin when the
 #     branch history was rewritten on the other machine. With
 #     --sync-upstream, also merge upstream/master in and push back.
 #   - master (vanilla): fast-forward + rebuild if HEAD moved
@@ -246,7 +247,7 @@ update_helix() {
 	fi
 
 	if $DRY_RUN; then
-		would "fetch origin + upstream; sync local-patches from origin (ff, or backup + reset if origin was rewritten)"
+		would "fetch origin + upstream; sync local-patches from origin (ff, or reset if origin was rewritten)"
 		$SYNC_UPSTREAM && would "merge upstream/master into local-patches; push branch + master mirror after a successful build"
 		would "cargo install --path $HELIX_SRC/helix-term --locked (only if HEAD moved)"
 		return
@@ -289,9 +290,8 @@ update_helix() {
 		#               -> origin's history was rewritten (a deliberate
 		#                  force-push from the other machine, e.g. a patch-
 		#                  stack rework). The tree is clean (checked above)
-		#                  and nothing local-only exists, so save the old
-		#                  tip to a backup/ branch and hard-reset - no
-		#                  manual surgery on the second machine.
+		#                  and nothing local-only exists, so hard-reset -
+		#                  no manual surgery on the second machine.
 		#   diverged with local-only commits -> never auto-reset; report.
 		#   ahead only  -> local commits not pushed yet; keep them.
 		if $origin_fetched; then
@@ -319,12 +319,11 @@ update_helix() {
 					fi
 				done < <(git -C "$HELIX_SRC" reflog show --format=%H origin/local-patches 2>/dev/null | head -50)
 				if $safe_to_reset; then
-					local backup
-					backup="backup/local-patches-$(git -C "$HELIX_SRC" rev-parse --short HEAD)"
-					git -C "$HELIX_SRC" branch -f "$backup" HEAD >/dev/null
+					# No backup branch: every commit being dropped was on
+					# the fork before the rewrite, and the old tip stays
+					# reachable via `git reflog` for weeks regardless.
 					git -C "$HELIX_SRC" reset --hard origin/local-patches >/dev/null
 					warn "origin/local-patches was rewritten (force-push); resynced this checkout to it"
-					warn "  previous local tip kept as branch '$backup' - delete it once all is well"
 				else
 					warn "local-patches and the fork have diverged and this checkout has"
 					warn "  local-only commits; not touching it. Reconcile manually:"

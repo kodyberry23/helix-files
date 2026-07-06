@@ -115,7 +115,7 @@ hfu                  # sync local-patches from the fork + rebuild if it moved
 hfu --sync-upstream  # additionally: merge upstream/master in, rebuild, push back
 ```
 
-- **Plain `hfu`** fast-forwards `local-patches` from the fork (so changes pushed from the other machine land here). If the fork's branch history was rewritten by a deliberate force-push, it saves the old local tip to a `backup/local-patches-<sha>` branch and hard-resets - the second machine never needs manual surgery. When `upstream/master` has new commits it says so and points at `--sync-upstream`.
+- **Plain `hfu`** fast-forwards `local-patches` from the fork (so changes pushed from the other machine land here). If the fork's branch history was rewritten by a deliberate force-push, it hard-resets to the fork - the second machine never needs manual surgery. It only does this when every local commit was already on the fork (and the old tip stays in the reflog regardless); genuine local-only commits are never reset away. When `upstream/master` has new commits it says so and points at `--sync-upstream`.
 - **`hfu --sync-upstream`** *merges* `upstream/master` into `local-patches` (merge, never rebase: append-only history keeps a plain pull working on every machine), refreshes the `master` mirror, rebuilds, and pushes both branches back to the fork **only after the build succeeds** - the other machine can never pull a merge that doesn't compile. On merge conflicts it aborts cleanly, leaves the checkout untouched, and tells you to resolve deliberately.
 
 ## Updating
