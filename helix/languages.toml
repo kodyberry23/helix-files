@@ -79,7 +79,6 @@ formatter = { command = "prettier", args = ["--parser", "json"] }
 [[language]]
 name = "markdown"
 language-servers = ["marksman"]
-soft-wrap.enable = true
 formatter = { command = "prettier", args = ["--parser", "markdown"] }
 
 [[language]]
@@ -94,4 +93,3 @@ name = "text"
 scope = "text.plain"
 file-types = ["txt", "log"]
 roots = []
-soft-wrap.enable = true
