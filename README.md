@@ -29,7 +29,7 @@ helix-files/
 │   ├── apply-theme.sh          # render themes + point apps at the active one (alias: `hft`)
 │   ├── sessionizer.sh          # zellij project session picker (alias: `hs`)
 │   ├── dispatch-to-editor.sh   # treelix → editor pane (route :open-pick / :vsplit-pick)
-│   ├── dispatch-to-sidebar.sh  # manual reveal fallback (A-r / space-f); follow is automatic
+│   ├── dispatch-to-sidebar.sh  # manual reveal fallback (A-r / space-t); follow is automatic
 │   └── lib/                    # common.sh (helpers + brew lists), theme.sh (theme engine)
 ├── zellij/
 │   ├── config.kdl              # multiplexer config (keybinds; theme pointer)
@@ -157,7 +157,8 @@ Custom keys defined in `helix/config.toml` (on top of Helix's defaults):
 |---|---|
 | `space w` / `space q` / `space x` | `:w` / `:q` / `:x` (save / quit / save-quit) |
 | `A-r` | reveal current buffer in the sidebar (manual fallback — follow is automatic) |
-| `space f` | reveal current buffer in the sidebar AND move focus there |
+| `space t` | reveal current buffer in the sidebar AND move focus there |
+| `space f` | file picker (helix default) |
 | `H` / `L` | goto-line-start / goto-line-end |
 | `C-d` / `C-u` | half-page down / up, then center cursor |
 | `jk` (insert mode) | escape to normal mode |
@@ -187,9 +188,9 @@ These route through a **window picker** (an nvim-tree-style "pick which split" p
 
 treelix listens on a per-session unix socket (`$TREELIX_SOCKET_PATH = $XDG_RUNTIME_DIR/treelix/<session>.sock`, set by `scripts/launch-sidebar.sh`; single derivation in `scripts/lib/common.sh`). `scripts/launch-editor.sh` exports the same path to helix — and the ad-hoc `hx()` zshrc wrapper does the same inside zellij, so one-off editors follow too. The `local-patches` helix build pushes `reveal-follow <path>` to that socket **on every focused-buffer change** — no matter how the buffer changed (helix's own pickers, `:open`, goto/LSP jumps, buffer cycling, the jumplist, view switches). So by the time you move zellij focus over to the sidebar, the tree is already expanded to the file you were just editing and it's highlighted as the current file (nvim-tree's `update_focused_file` behavior).
 
-Guard rail: the `-follow` tag marks automatic pushes, and treelix applies those fully (expand + move its cursor) only when its own pane is idle. If you acted on treelix within the last second — e.g. the reveal is an echo of treelix's own Enter-open or Tab-preview — the current-file highlight still updates, but the expand/cursor move is **deferred** until you've been idle past the window, then applied. Explicit reveals (`A-r`, `space f`, `treelix reveal`) are never deferred.
+Guard rail: the `-follow` tag marks automatic pushes, and treelix applies those fully (expand + move its cursor) only when its own pane is idle. If you acted on treelix within the last second — e.g. the reveal is an echo of treelix's own Enter-open or Tab-preview — the current-file highlight still updates, but the expand/cursor move is **deferred** until you've been idle past the window, then applied. Explicit reveals (`A-r`, `space t`, `treelix reveal`) are never deferred.
 
-Manual fallbacks in `helix/config.toml`: `A-r` re-sends the current buffer through `scripts/dispatch-to-sidebar.sh` (useful if the sidebar pane was restarted, or under a stock `hx` without the follow patch); `space f` does the same and also moves zellij focus into the sidebar.
+Manual fallbacks in `helix/config.toml`: `A-r` re-sends the current buffer through `scripts/dispatch-to-sidebar.sh` (useful if the sidebar pane was restarted, or under a stock `hx` without the follow patch); `space t` does the same and also moves zellij focus into the sidebar.
 
 **Why named panes:** zellij's pane `name` (set in `default.kdl` via `pane name="sidebar"`/`pane name="editor"`) is surfaced as the TITLE column by `list-panes` and is stable across resizes and tab moves. The dispatcher resolves by name → id once per invocation, avoiding the fragility of OSC-0 title scraping or `focus-next-pane` heuristics.
 
@@ -345,4 +346,4 @@ The `zsh-helix-mode/` directory is a clone of [Multirious/zsh-helix-mode](https:
 - macOS only. The zellij `copy_command` is `pbcopy`. Adjust for Linux.
 - The `.zshrc` block is designed to coexist with another managed block (e.g. an existing `dotfiles managed block`) - guards prevent double-init for mise / oh-my-posh / zsh-helix-mode.
 - Setup auto-trusts `mise/config.toml` (`mise trust`) - without this, `mise install` errors on first run with an unfamiliar config.
-- The treelix sidebar must be running (the layout handles this) for reveals to reach it - both the automatic follow pushes and the manual `A-r`/`space f` fallbacks target the per-session socket. If you spawn treelix in a side pane manually without `$TREELIX_SOCKET_PATH` set, reveals won't reach it (and a second full treelix in the same session refuses to bind the live sidebar's socket rather than stealing it). Helix pushes follow reveals when launched with `TREELIX_SOCKET_PATH` in its environment - `scripts/launch-editor.sh` and the ad-hoc `hx()` zshrc wrapper both set it, so layout and one-off editors alike drive the sidebar.
+- The treelix sidebar must be running (the layout handles this) for reveals to reach it - both the automatic follow pushes and the manual `A-r`/`space t` fallbacks target the per-session socket. If you spawn treelix in a side pane manually without `$TREELIX_SOCKET_PATH` set, reveals won't reach it (and a second full treelix in the same session refuses to bind the live sidebar's socket rather than stealing it). Helix pushes follow reveals when launched with `TREELIX_SOCKET_PATH` in its environment - `scripts/launch-editor.sh` and the ad-hoc `hx()` zshrc wrapper both set it, so layout and one-off editors alike drive the sidebar.

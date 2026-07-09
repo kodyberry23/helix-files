@@ -130,10 +130,10 @@ newline = "⏎"
 "A-r" = ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh '%{buffer_name}'"
 
 # Jump to the current buffer in the treelix sidebar: reveal it AND move zellij
-# focus into the sidebar (the --focus flag). This intentionally overwrites
-# helix's default `space f` file_picker - file navigation lives in treelix in
-# this setup, so leader+f means "find the current file in the tree".
-"space"."f" = ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh --focus '%{buffer_name}'"
+# focus into the sidebar (the --focus flag). Bound to leader+t ("tree") -
+# `space t` is unbound in helix's default Space menu (checked against the
+# local build's keymap/default.rs). leader+f stays helix's stock file_picker.
+"space"."t" = ":sh $HOME/projects/helix-files/scripts/dispatch-to-sidebar.sh --focus '%{buffer_name}'"
 
 [keys.insert]
 "j"."k" = "normal_mode"
