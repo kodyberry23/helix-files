@@ -408,6 +408,16 @@ alias hfs="__REPO__/scripts/setup.sh"    # bootstrap / re-apply the dotfiles
 alias hfu="__REPO__/scripts/update.sh"   # update everything + clean stale artifacts
 alias hft="__REPO__/scripts/apply-theme.sh --set"  # switch theme - usage: hft <name>
 
+# Short socket dir for zellij's per-session IPC socket. The default lives
+# under macOS's $TMPDIR (/var/folders/... ~80 chars of prefix), and unix
+# socket paths cap at 103 bytes - so any session named after a project
+# longer than ~24 chars failed to bind and the client hung at attach with
+# a frozen terminal. /tmp/zellij-$UID leaves ~65 chars for session names.
+# NOTE: sessions started before this var existed live under the old dir;
+# new shells can't see them - detach and kill them once (zca), they
+# resurrect under the new dir on the next attach.
+export ZELLIJ_SOCKET_DIR="/tmp/zellij-$UID"
+
 # zellij session helpers
 alias zls='zellij list-sessions'              # list sessions
 alias za='zellij attach'                      # attach (with -c create); usage: za <name>
