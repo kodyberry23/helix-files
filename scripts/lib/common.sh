@@ -84,17 +84,21 @@ BREW_FORMULAS=(mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tr
 BREW_CASKS=(ghostty)
 
 # ─── zellij pinned install ────────────────────────────────────────────────
-# zellij is pinned rather than tracking Homebrew's latest. 0.44.3 (PR #4992 /
-# #5011, "preserve background color in trailing and skipped characters") broke
-# terminal-background transparency: zellij now paints default-bg cells with a
-# concrete colour instead of leaving them terminal-default (\e[49m), so
-# ghostty's background-opacity no longer shows through helix's editing area,
-# and the zellij theme's `background 0` trick can't work around it. 0.44.2 is
-# the last release before the regression. Installed via cargo into
-# ~/.cargo/bin (which precedes /opt/homebrew/bin on PATH), so it's excluded
-# from BREW_FORMULAS above. Bump this only after confirming transparency still
-# works on the newer version.
-ZELLIJ_PINNED_VERSION="0.44.2"
+# zellij is pinned rather than tracking Homebrew's latest, installed via
+# cargo into ~/.cargo/bin (which precedes /opt/homebrew/bin on PATH), so
+# it's excluded from BREW_FORMULAS above.
+#
+# 0.44.3: fixes the intermittent freeze on `hs <new project>` - a race
+# where pane output was processed after the render cycle, leaving a
+# stale/frozen-looking client on first attach (zellij #5163, plus the
+# #5152 deadlock and #5156 query-forwarding fixes). The earlier belief
+# that 0.44.3 broke ghostty transparency (attributed to PR #4992/#5011)
+# was refuted 2026-07-13: both PRs are already in v0.44.1 (git ancestry),
+# and raw pty captures of 0.44.2 vs 0.44.3 under this exact config emit
+# byte-identical background SGRs (terminal-default \e[49m for empty
+# cells). Bump further only after checking the changelog for rendering
+# changes and re-confirming transparency visually.
+ZELLIJ_PINNED_VERSION="0.44.3"
 
 # Installed zellij version (e.g. "0.44.2"), or empty if not installed.
 zellij_installed_version() {
