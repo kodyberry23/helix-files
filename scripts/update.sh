@@ -10,8 +10,10 @@
 #   1b. Stale-artifact cleanup: remove broken ~/.config symlinks into this
 #      repo (e.g. broot, replaced by treelix), stale broot sockets, orphaned
 #      per-session treelix/helix sockets (conservatively), the broot brew
-#      formula we no longer manage, and broot's leftover launcher `source`
-#      line in ~/.zshrc (which errors on new shells after broot is removed).
+#      formula we no longer manage, broot's leftover launcher `source`
+#      line in ~/.zshrc (which errors on new shells after broot is removed),
+#      and the cargo-pinned zellij from the 2026-06/07 pin era (migrated
+#      back to brew: install brew's copy, then drop cargo's).
 #   2. Brew packages we installed: brew upgrade (with auto-update disabled)
 #   3. mise-managed tools: mise upgrade (runtimes, LSPs, formatters)
 #   4. Helix nightly: git sync + cargo install --path helix-term --locked.
@@ -73,7 +75,7 @@ itself - pass HOMEBREW_NO_AUTO_UPDATE=1 to `brew upgrade`.
 Updates:
   1. helix-files repo (git pull --ff-only)
   1b. Stale-artifact cleanup (broken config symlinks, broot leftovers,
-     orphaned sockets)
+     orphaned sockets, cargo-pinned zellij -> brew migration)
   2. Brew packages we manage (brew upgrade, no auto-update)
   3. mise-managed tools (runtimes, LSPs, formatters)
   4. Helix nightly (sync local-patches from the fork - fast-forward, or
@@ -503,70 +505,6 @@ update_treelix_from_source() {
 	warn "  restart open treelix sidebar panes to load it (running ones keep the old binary)"
 }
 
-# ─── 4c. zellij (pinned, NOT upgraded) ────────────────────────────────────
-# zellij is deliberately excluded from BREW_FORMULAS, so update_brew_packages
-# never touches it. Instead we enforce the pin here: if the installed zellij
-# isn't ZELLIJ_PINNED_VERSION (e.g. a stray `brew upgrade zellij` or manual
-# install pulled the transparency-breaking 0.44.3 back), remove the brew copy
-# and reinstall the pinned version via cargo. See the regression note in
-# lib/common.sh. No-op in the common case where the pin already holds.
-update_zellij() {
-	info "zellij (pinned $ZELLIJ_PINNED_VERSION, not upgraded)"
-
-	# `|| true`: zellij may be absent, which under `set -e` + pipefail would
-	# otherwise abort the run (same guard as update_treelix's version probe).
-	local installed brew_managed=false
-	installed=$(zellij_installed_version) || true
-	if has_cmd brew && brew_has formula zellij; then
-		brew_managed=true
-	fi
-
-	# Fast path: the pinned cargo build is active and nothing brew-managed
-	# lingers - the steady state, no work to do.
-	if [[ "$installed" == "$ZELLIJ_PINNED_VERSION" && $brew_managed == false ]]; then
-		ok "already at $ZELLIJ_PINNED_VERSION (cargo)"
-		return
-	fi
-
-	if $DRY_RUN; then
-		$brew_managed && would "brew uninstall zellij (drop brew-managed copy)"
-		# A cargo build already at the pin needs no recompile even if a brew
-		# copy is being removed alongside it.
-		[[ "$installed" != "$ZELLIJ_PINNED_VERSION" ]] \
-			&& would "cargo install zellij --version $ZELLIJ_PINNED_VERSION --locked --force"
-		return
-	fi
-
-	if ! ensure_cargo_on_path; then
-		err "cargo not found - install rust via mise / rustup and re-run"
-		return 1
-	fi
-
-	# Remove any brew-managed copy first, then re-probe: dropping brew's zellij
-	# can change which binary is first on PATH (brew's was only active if no
-	# cargo build existed), so decide whether to compile from what survives.
-	if $brew_managed; then
-		info "  removing brew-managed zellij"
-		brew uninstall zellij >/dev/null 2>&1 \
-			&& ok "  uninstalled brew zellij" \
-			|| warn "  brew uninstall zellij failed (detach running sessions and re-run)"
-		installed=$(zellij_installed_version) || true
-	fi
-
-	if [[ "$installed" == "$ZELLIJ_PINNED_VERSION" ]]; then
-		ok "already at $ZELLIJ_PINNED_VERSION (cargo)"
-		return
-	fi
-
-	if [[ -n $installed ]]; then
-		info "  pinning zellij $installed -> $ZELLIJ_PINNED_VERSION (compiles, ~4 min)"
-	else
-		info "  installing pinned zellij $ZELLIJ_PINNED_VERSION (compiles, ~4 min)"
-	fi
-	install_zellij_pinned
-	ok "zellij -> $(zellij_installed_version) (pinned via cargo)"
-}
-
 # ─── 3. mise-managed tools ────────────────────────────────────────────────
 update_mise_tools() {
 	info "mise tools"
@@ -615,6 +553,53 @@ apply_theme() {
 	else
 		bash "$SCRIPT_DIR/apply-theme.sh"
 	fi
+}
+
+# Migrate a cargo-pinned zellij (pin era 2026-06-19..2026-07-13) back to
+# brew: install brew's copy FIRST, then drop the cargo one shadowing it on
+# PATH - never leave the machine without a zellij. Running sessions keep
+# their in-memory server; only new commands see the brew binary. Returns 0
+# when a cargo copy was found (and handled or previewed), 1 when there is
+# nothing to migrate.
+migrate_zellij_to_brew() {
+	[[ -x "$HOME/.cargo/bin/zellij" ]] || return 1
+
+	if $DRY_RUN; then
+		if ! has_cmd brew; then
+			would "keep cargo-pinned zellij (brew not on PATH; migration skipped)"
+			return 0
+		fi
+		if ! brew_has formula zellij; then
+			would "brew install zellij (take over from the cargo-pinned copy)"
+		fi
+		would "remove cargo-pinned zellij (cargo uninstall, or rm ~/.cargo/bin/zellij)"
+		return 0
+	fi
+
+	if ! has_cmd brew; then
+		warn "  brew not available; keeping cargo-pinned zellij"
+		return 0
+	fi
+	if ! brew_has formula zellij; then
+		info "  installing brew zellij (takes over from the cargo-pinned copy)"
+		if brew install zellij >/dev/null 2>&1; then
+			# The brew upgrade step runs after cleanup and consults
+			# brew_has's cached package list - refresh it so the
+			# just-installed formula is visible there.
+			brew_cache_reset
+		else
+			warn "  brew install zellij failed; keeping cargo-pinned copy"
+			return 0
+		fi
+	fi
+	if ensure_cargo_on_path && cargo uninstall zellij >/dev/null 2>&1; then
+		ok "removed cargo-pinned zellij (brew-managed now: $(zellij --version 2>/dev/null || echo unknown))"
+	elif rm -f "$HOME/.cargo/bin/zellij" 2>/dev/null && [[ ! -e "$HOME/.cargo/bin/zellij" ]]; then
+		ok "removed cargo-pinned zellij binary (brew-managed now)"
+	else
+		warn "  could not remove ~/.cargo/bin/zellij - remove it manually"
+	fi
+	return 0
 }
 
 # ─── 1b. Clean up stale artifacts ─────────────────────────────────────────
@@ -698,6 +683,11 @@ cleanup_stale() {
 		done
 	fi
 
+	# 3b. Cargo-pinned zellij from the 2026-06/07 pin era -> brew-managed.
+	if migrate_zellij_to_brew; then
+		found=1
+	fi
+
 	# 4. broot brew formula (replaced by treelix; we no longer manage it).
 	if has_cmd brew && brew_has formula broot; then
 		found=1
@@ -754,7 +744,6 @@ main() {
 	update_mise_tools
 	update_helix
 	update_treelix
-	update_zellij
 	update_zsh_helix_mode
 	apply_theme
 

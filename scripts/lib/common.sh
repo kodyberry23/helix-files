@@ -75,42 +75,16 @@ resolve_pane_id_by_name() {
 }
 
 # ─── Shared package lists (single source of truth) ────────────────────────
-# setup.sh installs these; update.sh upgrades them. Helix, treelix, and zellij
-# are intentionally excluded: helix/treelix are built from source in setup.sh,
-# and zellij is pinned to a known-good version via cargo (see
-# ZELLIJ_PINNED_VERSION below) rather than tracking brew's latest. bat and tree
-# feed the FZF preview commands wired up in the .zshrc managed block.
-BREW_FORMULAS=(mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq)
+# setup.sh installs these; update.sh upgrades them. Helix and treelix are
+# intentionally excluded: both are built/installed from source in setup.sh.
+# zellij is brew-managed like everything else (it was cargo-pinned from
+# 2026-06-19 to 2026-07-13 over a suspected 0.44.3 transparency regression,
+# since refuted empirically - see the zellij paragraph in the README; the
+# update.sh stale-artifact cleanup migrates pinned machines back to brew).
+# bat and tree feed the FZF preview commands wired up in the .zshrc managed
+# block.
+BREW_FORMULAS=(mise jdtls erlang_ls marksman oh-my-posh fzf fd zoxide eza bat tree git jq zellij)
 BREW_CASKS=(ghostty)
-
-# ─── zellij pinned install ────────────────────────────────────────────────
-# zellij is pinned rather than tracking Homebrew's latest, installed via
-# cargo into ~/.cargo/bin (which precedes /opt/homebrew/bin on PATH), so
-# it's excluded from BREW_FORMULAS above.
-#
-# 0.44.3: fixes the intermittent freeze on `hs <new project>` - a race
-# where pane output was processed after the render cycle, leaving a
-# stale/frozen-looking client on first attach (zellij #5163, plus the
-# #5152 deadlock and #5156 query-forwarding fixes). The earlier belief
-# that 0.44.3 broke ghostty transparency (attributed to PR #4992/#5011)
-# was refuted 2026-07-13: both PRs are already in v0.44.1 (git ancestry),
-# and raw pty captures of 0.44.2 vs 0.44.3 under this exact config emit
-# byte-identical background SGRs (terminal-default \e[49m for empty
-# cells). Bump further only after checking the changelog for rendering
-# changes and re-confirming transparency visually.
-ZELLIJ_PINNED_VERSION="0.44.3"
-
-# Installed zellij version (e.g. "0.44.2"), or empty if not installed.
-zellij_installed_version() {
-	zellij --version 2>/dev/null | awk '{print $2}'
-}
-
-# cargo-install the pinned zellij into ~/.cargo/bin. Pure: no dry-run gating or
-# logging - callers handle those. Compiles from source (~4 min). Returns
-# cargo's exit status.
-install_zellij_pinned() {
-	cargo install zellij --version "$ZELLIJ_PINNED_VERSION" --locked --force
-}
 
 # ─── Dry-run flag handling ────────────────────────────────────────────────
 # parse_dry_run_args sets DRY_RUN=true if --dry-run / -n appears anywhere in
@@ -158,6 +132,14 @@ brew_has() {
 		*)       return 1                  ;;
 	esac
 	grep -qFx "$pkg" <<<"$list"
+}
+
+# Drop brew_has's cached package lists so the next probe re-queries brew -
+# call after installing/uninstalling a formula mid-run.
+brew_cache_reset() {
+	__brew_list_formula=""
+	__brew_list_cask=""
+	__brew_list_loaded=0
 }
 
 # ─── treelix prebuilt-release install ─────────────────────────────────────
