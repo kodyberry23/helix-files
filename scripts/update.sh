@@ -739,6 +739,30 @@ cleanup_stale() {
 		fi
 	fi
 
+	# 6. Zellij servers still running under the pre-2026-07-10 DEFAULT
+	#    socket dir (before ZELLIJ_SOCKET_DIR moved it to /tmp/zellij-$UID).
+	#    They are invisible to new shells, their sessions keep resurrecting
+	#    from the shared serialization cache (`zellij delete-session` looks
+	#    successful but the entry is re-written seconds later), and their
+	#    helix/treelix integration breaks once new-env tooling runs. Killing
+	#    live sessions is the user's call - warn with the exact commands.
+	if [[ -n ${TMPDIR:-} ]]; then
+		local old_servers
+		old_servers=$(pgrep -fl "zellij --server ${TMPDIR%/}/zellij-" 2>/dev/null || true)
+		if [[ -n "$old_servers" ]]; then
+			found=1
+			warn "zellij session(s) still running under the pre-ZELLIJ_SOCKET_DIR socket dir:"
+			while IFS= read -r _srv; do
+				warn "    ${_srv##*/}"
+			done <<<"$old_servers"
+			warn "  new shells can't see them, and deleting their sessions won't stick"
+			warn "  (the running server re-serializes the entry within seconds)."
+			warn "  Finish the migration: save any work in them, then per session:"
+			warn "    env -u ZELLIJ_SOCKET_DIR zellij kill-session <name>"
+			warn "  then a normal 'zcs <name>' removes it for good."
+		fi
+	fi
+
 	if (( found == 0 )); then
 		ok "nothing stale to clean"
 	fi
