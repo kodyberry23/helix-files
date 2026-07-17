@@ -646,35 +646,46 @@ cleanup_stale() {
 	done
 	shopt -u nullglob
 
-	# 3. Orphaned treelix/helix per-session sockets whose owning session is
-	#    gone. Deliberately conservative to never break a live session: a socket
-	#    is only removed when ALL of these hold — no matching live zellij session
-	#    (names sanitized the same way the sockets are), not the session we're
-	#    running inside, and older than 60 minutes (so we never race a session
-	#    that just started). Skipped entirely if zellij isn't available.
-	if has_cmd zellij; then
-		local live="" raw current
-		while IFS= read -r raw; do
-			raw=${raw%% *}                                   # first field = name
-			raw=$(printf '%s' "$raw" | sed -E 's/\x1b\[[0-9;]*m//g')  # strip ANSI
-			[[ -z "$raw" ]] && continue
-			live+="${raw//[^A-Za-z0-9_-]/_}"$'\n'            # sanitize like sockets
-		done < <(zellij list-sessions 2>/dev/null || true)
+	# 3. Orphaned treelix/helix per-session sockets. Liveness is decided by
+	#    the socket itself: `lsof -U` lists every unix socket a process holds,
+	#    so a socket path that appears there has a live listener and is NEVER
+	#    touched. (The previous heuristic asked zellij for live session NAMES
+	#    - that deleted sockets out from under running helix/treelix instances
+	#    on 2026-07-13, because sessions alive under the pre-07-10 zellij
+	#    socket dir look EXITED from new shells; every sidebar open in those
+	#    sessions then fell back to spawning a fresh editor pane. A listener
+	#    check can't be fooled by session-name visibility.) A socket is
+	#    removed only when ALL hold: no listener, not the session we're
+	#    running inside, and older than 60 minutes (never race a session
+	#    that just started). Skipped entirely if lsof isn't available.
+	if has_cmd lsof; then
+		local live_socks current
+		# $NF = the NAME column (socket path). Session slugs are sanitized to
+		# [A-Za-z0-9_-] so the paths never contain spaces.
+		live_socks=$(lsof -U 2>/dev/null | awk '{print $NF}') || true
+		# A running macOS always has unix sockets (launchd, mDNSResponder,
+		# ...). An empty list means lsof itself failed - treating that as
+		# "nothing is live" would delete sockets out from under running
+		# listeners, the exact bug this check exists to prevent. Skip the
+		# socket sweep (only) in that case; later cleanup items still run.
+		if [[ -z "$live_socks" ]]; then
+			warn "lsof -U returned nothing; skipping socket cleanup this run"
+		fi
 		current=${ZELLIJ_SESSION_NAME:-}
 		current=${current//[^A-Za-z0-9_-]/_}
 
 		local base s name
-		for base in "${XDG_RUNTIME_DIR:-/tmp}/treelix" "${XDG_RUNTIME_DIR:-/tmp}/helix"; do
+		[[ -n "$live_socks" ]] && for base in "${XDG_RUNTIME_DIR:-/tmp}/treelix" "${XDG_RUNTIME_DIR:-/tmp}/helix"; do
 			[[ -d "$base" ]] || continue
 			shopt -s nullglob
 			for s in "$base"/*.sock; do
 				name=$(basename "$s" .sock)
 				[[ -n "$current" && "$name" == "$current" ]] && continue   # our session
-				grep -qxF "$name" <<<"$live" && continue                   # live session
+				grep -qxF "$s" <<<"$live_socks" && continue                # live listener
 				[[ -n "$(find "$s" -mmin +60 2>/dev/null)" ]] || continue  # too fresh
 				found=1
 				if $DRY_RUN; then
-					would "rm orphaned socket $s (no live session '$name')"
+					would "rm orphaned socket $s (no process is listening on it)"
 				else
 					rm -f "$s" && ok "removed orphaned socket $(basename "$s")"
 				fi
