@@ -128,10 +128,6 @@ fi
 session_name=$(basename "$selected" | tr ' .:' '___')
 
 # ─── Attach or create ─────────────────────────────────────────────────────
-# `zellij attach -c` attaches if the session exists, creates it otherwise.
-# When created fresh, default_layout (set in config.kdl to "default")
-# spawns the treelix sidebar + helix editor pair.
-#
 # Inside zellij: zellij has no in-place "switch-session" - refuse with a
 # hint so the user detaches first. ZELLIJ env var is set inside sessions.
 if [[ -n ${ZELLIJ:-} ]]; then
@@ -140,4 +136,38 @@ if [[ -n ${ZELLIJ:-} ]]; then
 fi
 
 cd "$selected"
+
+# Create the session detached first, THEN attach - never both in one shot.
+#
+# `zellij attach --create` couples three things into a single cold start:
+# spawning the server, running the default layout (which launches the
+# treelix sidebar + helix editor panes), and attaching this client. On a
+# fresh first attach those overlap, and the client's terminal-capability
+# handshake (DA/color-scheme queries) can race with pane startup. The reply
+# lands after the client's parser has moved on, leaking as literal text
+# (e.g. `^[[?997;2n`) and wedging the client - the server stays healthy but
+# no keystroke registers, so the whole view looks frozen. zellij 0.44.3
+# narrowed this window but did not close it for the ghostty cold-attach case.
+#
+# `--create-background` spawns the server and runs the layout with NO client
+# attached, so the panes settle with nothing in the query loop. We then
+# attach to the already-stable server - the ordinary re-attach path, which
+# is exactly the "close the tab and reopen and it works" that dodged the
+# race by hand. Existing sessions skip straight to attach (this is also the
+# reattach path for `hs <name>`).
+if ! zellij_session_exists "$session_name"; then
+	zellij attach --create-background "$session_name"
+	# --create-background returns immediately; wait for the session to
+	# register so the attach below connects to the settled session instead
+	# of racing its spawn (typically well under a second).
+	for _ in $(seq 1 25); do
+		zellij_session_exists "$session_name" && break
+		sleep 0.2
+	done
+fi
+# `--create` here is a safety net, not the normal path: after the block above
+# the session already exists, so this just attaches (no spawn, no race). It
+# only re-creates in the pathological case where the detached session never
+# registered or died before we got here - preserving the old atomic
+# create-or-attach guarantee instead of dead-ending on "session not found".
 exec zellij attach --create "$session_name"

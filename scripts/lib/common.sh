@@ -60,6 +60,14 @@ treelix_socket_path() {
 	printf '%s' "${XDG_RUNTIME_DIR:-/tmp}/treelix/$(zellij_session_slug).sock"
 }
 
+# True if a zellij session with exactly this name already exists (live or
+# resurrectable). `-sn` prints bare names, one per line, with no ANSI/markup;
+# grep -xF matches the whole line as a fixed string so `toob` never matches
+# `toobie`.
+zellij_session_exists() {
+	zellij list-sessions -sn 2>/dev/null | grep -qxF "$1"
+}
+
 # Print the zellij pane id for the terminal pane whose TITLE matches $1,
 # or nothing if no match. TITLE is the layout's `pane name="..."` and
 # stable across resizes, tab moves, and restarts (but not manual rename
