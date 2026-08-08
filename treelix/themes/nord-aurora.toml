@@ -47,7 +47,10 @@ git_untracked = "orange"
 git_ignored   = "fgMuted"
 cut           = "red / none / italic"
 copy          = "yellow"
-special       = "yellow / none / bold"
+# Bold only, normal text color (nvim-tree's SpecialFile convention): a
+# status COLOR here is a trap — yellow collided with git_dirty, making
+# curated "special" files (package.json, README.md, ...) read as modified.
+special       = "fg / none / bold"
 opened        = "fgBright / none / bold"
 bookmark      = "purple"
 selected      = "none / bgHighlight"
