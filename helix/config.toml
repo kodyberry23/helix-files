@@ -19,12 +19,6 @@ true-color = true
 # defensive: if anything in the launch chain ever sets TMUX again, helix's
 # auto-detect would prefer `tmux save-buffer` over pasteboard.
 clipboard-provider = "pasteboard"
-# Implicitly trust every workspace - skips the "trust this project?" prompt
-# on first open. The flag is named `insecure` because it disables the guard
-# against malicious local-config / language-server payloads in untrusted
-# repos. Safe enough when you only open projects you authored.
-insecure = true
-
 # Auto-reload externally-modified files AND refresh the git diff gutter
 # on git state changes. Patched in via helix-editor/helix PR #14544
 # (filesentry file watcher) plus a local commit that extends the VCS
@@ -47,6 +41,16 @@ enable = true
 prompt-if-modified = false
 poll.enable = true
 poll.interval = 30000
+
+# Implicitly trust every workspace - skips the "trust this project?" prompt
+# on first open. Upstream renamed the old `[editor] insecure = true` flag to
+# this table when workspace-trust landed on master. `level = "insecure"`
+# disables the guard against malicious local-config / language-server
+# payloads in untrusted repos. Safe enough when you only open projects you
+# authored.
+[editor.workspace-trust]
+level = "insecure"
+prompt = false
 
 [editor.gutters]
 # Default layout omits a trailing spacer, so the diff stripe sits flush
