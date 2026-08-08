@@ -131,8 +131,8 @@
 # ANSI: polar_dim"). [palette] must stay the LAST section of this file -
 # TOML assigns every key after the header into it.
 [palette]
-bg           = "#1E1D23"
-bgDark       = "#1A191E"
+bg           = "#121116"
+bgDark       = "#0C0B0F"
 bgSurface    = "#29292E"
 bgHighlight  = "#29292E"
 bgHighlight2 = "#524A51"

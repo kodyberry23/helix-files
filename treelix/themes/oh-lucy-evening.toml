@@ -8,7 +8,7 @@
 #               modifiers: bold, italic, underline, dim, reversed.
 
 [palette]
-bg           = "#1E1D23"
+bg           = "#121116"
 bgSurface    = "#29292E"
 bgHighlight  = "#29292E"
 bgHighlight2 = "#524A51"

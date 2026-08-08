@@ -28,11 +28,11 @@ palette = 14=#BDA9D4
 palette = 15=#DED7D0
 
 # ─── Surface ──────────────────────────────────────────────────────────────
-background           = #1E1D23
+background           = #121116
 foreground           = #DED7D0
 # Cursor colour matches Helix `ui.cursor.*` and the ZHM_CURSOR_* overrides
 # so the cursor looks the same in every layer.
 cursor-color         = #DFE0EA
-cursor-text          = #1E1D23
+cursor-text          = #121116
 selection-background = #524A51
 selection-foreground = #DFE0EA

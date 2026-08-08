@@ -34,7 +34,7 @@ themes {
             emphasis_3 "#B898DD"
         }
         ribbon_selected {
-            base       "#1E1D23"
+            base       "#121116"
             background "#DED7D0"
             emphasis_0 "#E39A65"
             emphasis_1 "#FF7DA3"
@@ -59,7 +59,7 @@ themes {
         }
         table_cell_selected {
             base       "#DFE0EA"
-            background "#1E1D23"
+            background "#121116"
             emphasis_0 "#E39A65"
             emphasis_1 "#FF7DA3"
             emphasis_2 "#7EC49D"
@@ -75,7 +75,7 @@ themes {
         }
         list_selected {
             base       "#DFE0EA"
-            background "#1E1D23"
+            background "#121116"
             emphasis_0 "#E39A65"
             emphasis_1 "#FF7DA3"
             emphasis_2 "#7EC49D"

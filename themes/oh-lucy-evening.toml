@@ -20,8 +20,10 @@
 name = "oh-lucy-evening"
 
 [ui]
-bg            = "#1E1D23"  # upstream bg
-bg_dark       = "#1A191E"  # upstream `dark` - recessed strip
+bg            = "#121116"  # near-black take on upstream bg (#1E1D23), same
+                           # warm plum-charcoal hue, darkened per preference
+bg_dark       = "#0C0B0F"  # recessed strip - kept one step darker than bg
+                           # (was upstream `dark` #1A191E)
 bg_surface    = "#29292E"  # upstream black1 / CursorLine bg
 bg_highlight  = "#29292E"  # upstream visual_select_bg
 bg_highlight2 = "#524A51"  # upstream line_fg / cl_bg, strongest surface step
