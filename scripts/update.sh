@@ -40,6 +40,11 @@
 #      a fresh bash, so it always sees the just-pulled zshrc_block), which
 #      is what keeps the deployed ~/.zshrc from drifting behind setup.sh
 #      edits on every update.
+#   6. Config sanity check: validate helix/config.toml against the just-built
+#      hx binary (hx --health). The binary and its config live in two repos;
+#      this catches a config field the new binary rejects (drift between the
+#      repos) at update time, naming the field, instead of a silent break on
+#      the next editor launch.
 #
 # Caveat: step 1 pulls a new copy of common.sh / setup.sh / update.sh,
 # but this script keeps running with the OLD versions it already sourced.
@@ -555,6 +560,47 @@ apply_theme() {
 	fi
 }
 
+# ─── Config sanity: catch hx binary / config.toml drift ───────────────────
+# The hx binary (built from ~/projects/helix) and its config (helix/config.toml
+# in THIS repo) are versioned in two separate repos. When a binary gains,
+# renames, or removes a config field, an out-of-date config is rejected with
+# "unknown field ..." the next time helix opens - a silent break the user only
+# discovers on launch (e.g. the workspace-trust migration that renamed the old
+# `[editor] insecure = true` to `[editor.workspace-trust]`). Both repos are
+# already updated above (step 1 pulls this repo's config, step 4 rebuilds the
+# binary), so by here they SHOULD agree; validate the freshly-built binary
+# against the pulled config so any remaining drift - e.g. one repo's remote
+# lagging the other - surfaces loudly now, with the offending field named,
+# instead of at the next editor launch.
+verify_helix_config() {
+	info "helix config check"
+	if $DRY_RUN; then
+		would "run hx --health to validate config.toml against the rebuilt binary"
+		return
+	fi
+	if ! has_cmd hx; then
+		warn "hx not on PATH; skipping config check"
+		return
+	fi
+	local health
+	health=$(hx --health 2>&1 || true)
+	# Helix reports a rejected config as "Configuration file malformed"
+	# (`--health`) / "Failed to load config" (startup), then the bad field.
+	if printf '%s' "$health" | grep -qiE "malformed|failed to load config"; then
+		err "helix config.toml is rejected by the current hx binary:"
+		printf '%s\n' "$health" \
+			| grep -iE "unknown field|malformed|failed to load config" \
+			| head -3 \
+			| while IFS= read -r line; do printf "      %s\n" "$line" >&2; done
+		warn "config.toml (this repo) is out of sync with the hx binary."
+		warn "  If this repo just updated, restart open editors to reload it."
+		warn "  If the field is genuinely gone from the binary, edit"
+		warn "  $REPO_ROOT/helix/config.toml to match, commit, and push."
+	else
+		ok "config.toml loads cleanly"
+	fi
+}
+
 # Migrate a cargo-pinned zellij (pin era 2026-06-19..2026-07-13) back to
 # brew: install brew's copy FIRST, then drop the cargo one shadowing it on
 # PATH - never leave the machine without a zellij. Running sessions keep
@@ -781,6 +827,7 @@ main() {
 	update_treelix
 	update_zsh_helix_mode
 	apply_theme
+	verify_helix_config
 
 	echo
 	if $DRY_RUN; then
