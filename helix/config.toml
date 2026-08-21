@@ -42,6 +42,24 @@ prompt-if-modified = false
 poll.enable = true
 poll.interval = 30000
 
+# Inline git blame (GitLens-style). Virtual text after the cursor line
+# showing who last touched it and when. Patched in from helix-editor/helix
+# PR #13133 via the NSPC911-forks/helix `gix-blame` rebase - not in stock
+# helix yet (issue #3035). See README "Local Helix patches".
+# - show: never | cursor-line | all-lines. Hide at runtime with
+#   `:set inline-blame.show never`, or flip with
+#   `:toggle inline-blame.show cursor-line never`.
+# - auto-fetch: compute blame in the background on open/change, so the
+#   virtual text is there immediately instead of appearing only after a
+#   manual `space B`. Cheap: gix blame runs off the render thread.
+# - format: {author} {time-ago} {date} {title} {body} {commit} {email}.
+# `space B` (stock binding from the patch, unbound in upstream helix) prints
+# the cursor line's blame in the statusline regardless of `show`.
+[editor.inline-blame]
+show = "cursor-line"
+auto-fetch = true
+format = "{author}, {time-ago} • {title} • {commit}"
+
 # Implicitly trust every workspace - skips the "trust this project?" prompt
 # on first open. Upstream renamed the old `[editor] insecure = true` flag to
 # this table when workspace-trust landed on master. `level = "insecure"`

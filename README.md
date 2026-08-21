@@ -104,9 +104,10 @@ Stock upstream Helix lacks two features this repo uses:
 - **Local patch: window picker** - the `:open-pick`/`:vsplit-pick`/`:hsplit-pick` typable commands (not upstream). With multiple splits open they label each split and let you pick which one the file opens into (nvim-tree-style); with one split they act immediately. See "Sidebar → editor" below.
 - **Local patch: sidebar follow** - when `TREELIX_SOCKET_PATH` is exported (done by `scripts/launch-editor.sh` and the ad-hoc `hx()` zshrc wrapper), helix pushes `reveal-follow <path>` to the treelix socket on every focused-buffer change, so the sidebar always tracks the active file. See "Editor → sidebar" below.
 - **[PR #14544](https://github.com/helix-editor/helix/pull/14544)** - filesentry file watcher: auto-reload on external file changes AND git-aware diff-gutter refresh. The `[editor.auto-reload]` block in `helix/config.toml` configures it. Supersedes the old [PR #13963](https://github.com/helix-editor/helix/pull/13963) mtime-poll patch (closed upstream in favor of #14544).
+- **[PR #13133](https://github.com/helix-editor/helix/pull/13133)** - inline git blame (closes [issue #3035](https://github.com/helix-editor/helix/issues/3035)). Virtual text after the cursor line with author, age, commit title and short hash, plus `space B` to print the line's blame in the statusline. Still open upstream and conflicting with master, so the merged copy is the community rebase at [NSPC911-forks/helix `gix-blame`](https://github.com/NSPC911-forks/helix/tree/gix-blame) (`c5f108276`, 2026-07-11), which already threads the workspace-trust level through blame requests. Two local fixes on top: the `FileBlame` re-export is gated on the `git` feature (the PR breaks every `helix-vcs` build without it, e.g. `cargo test -p helix-vcs`), and `helix-view` now enables `helix-vcs/git` explicitly since `Document` stores blame state. The `[editor.inline-blame]` block in `helix/config.toml` configures it; the `ui.virtual.inline-blame` scope in each theme styles it.
 - **Local patch: extended VCS watch triggers** - stock #14544 only watches `.git/HEAD`, which moves on branch switch but *not* on commit/amend/reset (those move `refs/heads/<branch>`, verified empirically). The local commit extends the triggers to `refs/**`, `packed-refs`, and `reftable` (matching gitsigns.nvim / VS Code / Zed practice) so the diff gutter clears within a second of an external commit. Candidate for upstreaming as #14544 review feedback.
 
-The patches live on the `local-patches` branch of the fork at [github.com/kodyberry23/helix](https://github.com/kodyberry23/helix) (base master `7eb1a28` + socket/window-pick/sidebar-follow patches + merged PR #14544 + the VCS-trigger extension). The fork's `master` stays a pristine mirror of `helix-editor/helix` so it's always obvious which commits are local. `setup.sh` clones `local-patches` directly into `~/projects/helix` and adds `upstream` as a second remote pointing at `helix-editor/helix`.
+The patches live on the `local-patches` branch of the fork at [github.com/kodyberry23/helix](https://github.com/kodyberry23/helix) (base master `7eb1a28` + socket/window-pick/sidebar-follow patches + merged PR #14544 + the VCS-trigger extension + merged PR #13133 inline blame). The fork's `master` stays a pristine mirror of `helix-editor/helix` so it's always obvious which commits are local. `setup.sh` clones `local-patches` directly into `~/projects/helix` and adds `upstream` as a second remote pointing at `helix-editor/helix`.
 
 Syncing is all `update.sh`'s job - no manual git needed:
 
@@ -159,12 +160,14 @@ Custom keys defined in `helix/config.toml` (on top of Helix's defaults):
 | `A-r` | reveal current buffer in the sidebar (manual fallback — follow is automatic) |
 | `space t` | reveal current buffer in the sidebar AND move focus there |
 | `space f` | file picker (helix default) |
+| `space B` | git blame for the cursor line in the statusline (patch default; inline blame on the cursor line is always on via `[editor.inline-blame]`) |
 | `H` / `L` | goto-line-start / goto-line-end |
 | `C-d` / `C-u` | half-page down / up, then center cursor |
 | `jk` (insert mode) | escape to normal mode |
 
 Plus:
 - `auto-format = false` (manual `:format` only) so you don't fight a formatter you didn't invoke.
+- `[editor.inline-blame]` shows `author, time-ago • title • commit` after the cursor line (`show = "cursor-line"`, `auto-fetch = true` so it is ready on open). `:set inline-blame.show never` hides it for the session; `all-lines` blames the whole buffer. Needs the patched build (see "Local Helix patches").
 - `insecure = true` skips Helix's "trust this workspace" prompt for every new project. Removes the seatbelt for `.helix/config.toml` payloads in untrusted repos - fine if you only open projects you authored.
 - `clipboard-provider = "pasteboard"` pins yank/paste to macOS pbcopy/pbpaste. Defensive: matches auto-detect today, but locks the choice if anything in the launch chain ever exports `$TMUX`.
 
