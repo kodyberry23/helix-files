@@ -13,3 +13,6 @@ zsh-helix-mode/
 
 # Stray Rust compile output (e.g. `rustc foo.rs -o rust_out`) - not a repo artifact.
 rust_out
+
+# Python bytecode from scripts/tests
+__pycache__/
