@@ -37,7 +37,10 @@ arrow         = "fgMuted"
 icon          = "fg"
 folder_icon   = "folder"
 symlink       = "accentAlt"
-executable    = "green"
+# Plain text color: the Nerd Font icon already marks scripts, and green here
+# collided with git_staged, making every `chmod +x` script read as staged
+# forever ("my .sh files stay green").
+executable    = "fg"
 git_staged    = "green"
 git_dirty     = "yellow"
 git_deleted   = "red"
@@ -45,6 +48,11 @@ git_renamed   = "yellow"
 git_conflict  = "red"
 git_untracked = "orange"
 git_ignored   = "fgMuted"
+# LSP diagnostics pushed by the patched helix (sidebar_follow.rs): file names
+# and their folders take the worst severity's color. These win over the git
+# colors above; the git glyph after the name still shows the git state.
+diagnostic_error   = "red"
+diagnostic_warning = "yellow"
 cut           = "red / none / italic"
 copy          = "yellow"
 # Bold only, normal text color (nvim-tree's SpecialFile convention): a
