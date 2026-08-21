@@ -17,7 +17,9 @@ Scenarios
   4. `:set inline-blame.auto-fetch true` at runtime fetches for the open buffer
   5. an external `git commit --amend --author` swaps the rendered author and
      hash without any edit in the editor (refs watcher -> blame refresh)
-  6. a file opened inside a linked `git worktree` renders blame
+  6. a file opened inside a linked `git worktree` renders blame, and a commit
+     made on the worktree branch (a ref in the main repository, outside the
+     worktree's workspace, so only polling can see it) refreshes it
 """
 import fcntl
 import os
@@ -58,13 +60,18 @@ def clean(raw):
 
 
 def config_with(workdir, auto_fetch):
-    """Copy of the repo's helix config with inline-blame.auto-fetch overridden."""
+    """Copy of the repo's helix config with inline-blame.auto-fetch overridden
+    and the auto-reload poll interval shortened (scenario 6 relies on polling)."""
     src = open(BASE_CONFIG).read()
-    if "auto-fetch = true" not in src:
-        sys.exit("helix/config.toml no longer sets `auto-fetch = true`; update this test")
+    for needle in ("auto-fetch = true", "poll.interval = 30000"):
+        if needle not in src:
+            sys.exit(f"helix/config.toml no longer contains `{needle}`; update this test")
     dst = os.path.join(workdir, f"config-autofetch-{str(auto_fetch).lower()}.toml")
     with open(dst, "w") as fh:
-        fh.write(src.replace("auto-fetch = true", f"auto-fetch = {str(auto_fetch).lower()}"))
+        fh.write(
+            src.replace("auto-fetch = true", f"auto-fetch = {str(auto_fetch).lower()}")
+            .replace("poll.interval = 30000", "poll.interval = 500")
+        )
     return dst
 
 
@@ -197,6 +204,11 @@ def main():
     sh("git", "worktree", "add", "-q", "-b", "blame-wt", worktree, "main", cwd=repo)
     hx = Hx(worktree, "notes.txt", cfg_on)
     check(hx.wait_for(line_two, 8), "6 blame renders inside a linked worktree", hx)
+    mark = len(hx.buf)
+    sh("git", "commit", "-q", "--amend", "--no-edit", "--author", "Author Four <four@example.invalid>", cwd=worktree)
+    sha4 = sh("git", "rev-parse", "--short", "HEAD", cwd=worktree).strip()
+    line_four = r"Author Four, .*ago • initial notes • " + re.escape(sha4)
+    check(hx.wait_for(line_four, 12, since=mark, redraw=True), "6 a commit on the worktree branch refreshes the blame (polled main repo)", hx, mark)
     hx.quit()
 
     shutil.rmtree(work, ignore_errors=True)
