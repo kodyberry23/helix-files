@@ -41,6 +41,11 @@ GIT_ENV = {
     "GIT_CONFIG_GLOBAL": "/dev/null",
     "GIT_CONFIG_SYSTEM": "/dev/null",
     "GIT_TERMINAL_PROMPT": "false",
+    # Fixed, clearly-past dates: a commit made in the same wall-clock second as
+    # the check renders `{time-ago}` as "0 seconds from now" and the "ago"
+    # assertions below would race the clock.
+    "GIT_AUTHOR_DATE": "2026-01-01T00:00:00Z",
+    "GIT_COMMITTER_DATE": "2026-01-01T00:00:00Z",
 }
 
 
