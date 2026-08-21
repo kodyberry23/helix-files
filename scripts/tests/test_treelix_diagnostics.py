@@ -17,6 +17,9 @@ Scenarios
      up red in the sidebar without any action in the editor
   4. git status keeps up with commits made elsewhere: a modified file is
      yellow, and goes back to plain once another process commits it
+  5. snapshots (`diagnostics-begin <seq>` ... `diagnostics-end <seq>`, what hx
+     sends) replace the whole set atomically, and an older sequence number
+     arriving late is ignored
 """
 import fcntl
 import os
@@ -228,6 +231,21 @@ def main():
     send_line(sock, f"diagnostics 0 0 {target}")
     tl.pump(1.0)
     check(tl.last_fg_of("main.rs", since=mark) not in (fg_of(RED), fg_of(YELLOW)), "1 clearing restores the plain color",
+          f"fg = {tl.last_fg_of('main.rs', since=mark)}")
+
+    # 5: snapshots
+    mark = len(tl.buf)
+    send_line(sock, f"diagnostics-begin 5\ndiagnostics 1 0 {target}\ndiagnostics-end 5")
+    check(tl.wait_for_span("main.rs", fg_of(RED), 5, since=mark), "5 a snapshot colors the file")
+    mark = len(tl.buf)
+    send_line(sock, "diagnostics-begin 4\ndiagnostics-end 4")
+    tl.pump(1.0)
+    check(tl.last_fg_of("main.rs", since=mark) in (None, fg_of(RED)), "5 an older snapshot is ignored",
+          f"fg = {tl.last_fg_of('main.rs', since=mark)}")
+    mark = len(tl.buf)
+    send_line(sock, "diagnostics-begin 6\ndiagnostics-end 6")
+    tl.pump(1.0)
+    check(tl.last_fg_of("main.rs", since=mark) not in (None, fg_of(RED), fg_of(YELLOW)), "5 a newer empty snapshot clears it",
           f"fg = {tl.last_fg_of('main.rs', since=mark)}")
     tl.quit("q")
 
