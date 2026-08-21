@@ -17,9 +17,10 @@ Scenarios
      up red in the sidebar without any action in the editor
   4. git status keeps up with commits made elsewhere: a modified file is
      yellow, and goes back to plain once another process commits it
-  5. snapshots (`diagnostics-begin <seq>` ... `diagnostics-end <seq>`, what hx
-     sends) replace the whole set atomically, and an older sequence number
-     arriving late is ignored
+  5. snapshots (`diagnostics-begin [<sender>] <seq>` ... `diagnostics-end
+     <seq>`, what hx sends) replace the whole set atomically; an older sequence
+     from the same sender arriving late is ignored, while a different sender
+     (a restarted editor) is applied whatever its sequence
 """
 import fcntl
 import os
@@ -94,12 +95,17 @@ def colored_spans(raw):
 class Pty:
     def __init__(self, argv, cwd, env):
         self.buf = bytearray()
+        self.draining = False
         self.pid, self.fd = pty.fork()
         if self.pid == 0:
             os.chdir(cwd)
             os.environ.clear()
             os.environ.update(env)
-            os.execv(argv[0], argv)
+            try:
+                os.execv(argv[0], argv)
+            except OSError as err:
+                sys.stderr.write(f"exec {argv[0]} failed: {err}\n")
+                os._exit(127)
         fcntl.ioctl(self.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 80, 0, 0))
 
     def pump(self, seconds):
@@ -118,7 +124,10 @@ class Pty:
     def drain_in_background(self):
         """Keep reading this pty so the process never blocks on terminal
         output while the test is watching a different pty (a TUI that cannot
-        write stops rendering, and with it every side effect of a render)."""
+        write stops rendering, and with it every side effect of a render).
+        From then on the drain thread is the pty's only reader."""
+        self.draining = True
+
         def drain():
             while True:
                 try:
@@ -151,8 +160,14 @@ class Pty:
         return last
 
     def quit(self, keys):
-        self.send(keys)
-        self.pump(0.5)
+        try:
+            self.send(keys)
+        except OSError:
+            pass
+        if not self.draining:
+            self.pump(0.5)
+        else:
+            time.sleep(0.5)
         try:
             os.kill(self.pid, 15)
         except ProcessLookupError:
@@ -192,6 +207,12 @@ def send_line(sock, line, timeout=10):
 
 def main():
     failures = []
+    children = []
+
+    def spawn(argv, cwd, env):
+        child = Pty(argv, cwd, env)
+        children.append(child)
+        return child
 
     def check(ok, label, extra=""):
         print(("OK  " if ok else "FAIL"), label)
@@ -202,6 +223,21 @@ def main():
 
     work = tempfile.mkdtemp(prefix="treelix-diag-")
     work = os.path.realpath(work)
+    try:
+        return run(work, failures, check, spawn)
+    finally:
+        # Whatever happened, no live editor or sidebar is left behind and the
+        # scratch tree goes with them.
+        for child in children:
+            try:
+                os.kill(child.pid, 15)
+                os.waitpid(child.pid, 0)
+            except (ProcessLookupError, ChildProcessError):
+                pass
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def run(work, failures, check, spawn):
     os.makedirs(os.path.join(work, "src"))
     target = os.path.join(work, "src", "main.rs")
     open(target, "w").write("fn main() {}\n")
@@ -211,9 +247,9 @@ def main():
     sock = os.path.join(work, "treelix.sock")
 
     # 1 + 2: protocol-driven coloring
-    tl = Pty([TREELIX, "--theme", THEME, work], work, base_env(sock))
+    tl = spawn([TREELIX, "--theme", THEME, work], work, base_env(sock))
     tl.pump(1.5)
-    check(tl.wait_for_span("run.sh", "", 3) or tl.last_fg_of("run.sh") not in (fg_of(GREEN),),
+    check(tl.last_fg_of("run.sh") not in (None, fg_of(GREEN)),
           "2 an executable script is not painted staged-green",
           f"run.sh fg = {tl.last_fg_of('run.sh')}")
     mark = len(tl.buf)
@@ -230,7 +266,7 @@ def main():
     mark = len(tl.buf)
     send_line(sock, f"diagnostics 0 0 {target}")
     tl.pump(1.0)
-    check(tl.last_fg_of("main.rs", since=mark) not in (fg_of(RED), fg_of(YELLOW)), "1 clearing restores the plain color",
+    check(tl.last_fg_of("main.rs", since=mark) not in (None, fg_of(RED), fg_of(YELLOW)), "1 clearing restores the plain color",
           f"fg = {tl.last_fg_of('main.rs', since=mark)}")
 
     # 5: snapshots
@@ -247,6 +283,9 @@ def main():
     tl.pump(1.0)
     check(tl.last_fg_of("main.rs", since=mark) not in (None, fg_of(RED), fg_of(YELLOW)), "5 a newer empty snapshot clears it",
           f"fg = {tl.last_fg_of('main.rs', since=mark)}")
+    mark = len(tl.buf)
+    send_line(sock, f"diagnostics-begin hx-restarted 1\ndiagnostics 1 0 {target}\ndiagnostics-end 1")
+    check(tl.wait_for_span("main.rs", fg_of(RED), 5, since=mark), "5 a new sender is applied despite a lower sequence")
     tl.quit("q")
 
     # 3: end to end through helix + rust-analyzer
@@ -261,12 +300,12 @@ def main():
         open(bad, "w").write('fn main() { let x: i32 = "not a number"; }\n')
         subprocess.run(["git", "init", "-q"], cwd=crate, check=True)
         sock2 = os.path.join(work, "treelix2.sock")
-        tl = Pty([TREELIX, "--theme", THEME, crate], crate, base_env(sock2))
+        tl = spawn([TREELIX, "--theme", THEME, crate], crate, base_env(sock2))
         tl.pump(1.0)
         send_line(sock2, f"reveal {bad}")
         tl.pump(0.5)
         mark = len(tl.buf)
-        hx = Pty([HX, "src/main.rs"], crate, base_env(sock2))
+        hx = spawn([HX, "src/main.rs"], crate, base_env(sock2))
         hx.drain_in_background()
         ok = tl.wait_for_span("main.rs", fg_of(RED), 90, since=mark)
         check(ok, "3 rust-analyzer error reaches the sidebar as red through hx", ESC.sub(b"", bytes(tl.buf[mark:])).decode("utf-8", "replace"))
@@ -287,7 +326,7 @@ def main():
     git("add", "notes.txt")
     git("commit", "-q", "-m", "initial")
     sock3 = os.path.join(work, "treelix3.sock")
-    tl = Pty([TREELIX, "--theme", THEME, repo], repo, base_env(sock3))
+    tl = spawn([TREELIX, "--theme", THEME, repo], repo, base_env(sock3))
     tl.pump(1.0)
     mark = len(tl.buf)
     open(tracked, "a").write("two\n")
@@ -306,7 +345,6 @@ def main():
           f"last fg = {tl.last_fg_of('notes.txt', since=mark)}")
     tl.quit("q")
 
-    shutil.rmtree(work, ignore_errors=True)
     if failures:
         print(f"\n{len(failures)} failure(s)")
         return 1
