@@ -11,7 +11,9 @@ Run:  python3 scripts/tests/test_treelix_diagnostics.py      (exit 0 = all pass)
 
 Scenarios
   1. `diagnostics 2 0 <file>` paints the file name red with a " 2" badge and
-     its collapsed parent folder red; `0 1` turns both yellow; `0 0` clears
+     its collapsed parent folder red; `0 1` turns both yellow; `0 0` clears;
+     a report whose casing differs from the on-disk name still colors the file
+     (macOS resolves paths case-insensitively, so editors see either casing)
   2. an executable script is not green (green is reserved for git staged)
   3. [rust-analyzer] hx + treelix end to end: a compile error in main.rs shows
      up red in the sidebar without any action in the editor
@@ -268,6 +270,17 @@ def run(work, failures, check, spawn):
     tl.pump(1.0)
     check(tl.last_fg_of("main.rs", since=mark) not in (None, fg_of(RED), fg_of(YELLOW)), "1 clearing restores the plain color",
           f"fg = {tl.last_fg_of('main.rs', since=mark)}")
+
+    # 1b: case difference between the editor's report and the on-disk name
+    disk_cased = os.path.join(work, "src", "Header.txt")
+    open(disk_cased, "w").write("x\n")
+    mark = len(tl.buf)
+    send_line(sock, f"diagnostics 3 0 {os.path.join(work, 'src', 'header.txt')}")
+    check(tl.wait_for_span("Header.txt", fg_of(RED), 5, since=mark),
+          "1b a lowercase report colors the on-disk-cased file",
+          ESC.sub(b"", bytes(tl.buf[mark:])).decode("utf-8", "replace"))
+    send_line(sock, f"diagnostics 0 0 {os.path.join(work, 'src', 'header.txt')}")
+    tl.pump(0.8)
 
     # 5: snapshots
     mark = len(tl.buf)
