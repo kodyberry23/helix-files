@@ -32,6 +32,12 @@ elixir-ls                        = "latest"  # asdf: mise-plugins/mise-elixir-ls
 "npm:@playwright/cli" = "latest"
 # Check package.json dependency ranges for updates (`ncu`; `ncu -i` to pick)
 "npm:npm-check-updates" = "latest"
+# Yarn classic (1.22.x). In repos that vendor Yarn 2+/berry it delegates to
+# the release named by .yarnrc.yml `yarnPath`, so one global shim serves both
+# worlds. A bare package.json `packageManager` pin does NOT redirect it (that
+# is Corepack's mechanism, which mise shims bypass) - such repos need the
+# yarnPath line too.
+"npm:yarn" = "latest"
 # Static file server for quick local checks (`serve dist/`)
 "npm:serve" = "latest"
 
