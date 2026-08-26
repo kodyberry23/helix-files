@@ -12,8 +12,11 @@ activate_aggressive = true
 [tools]
 # ─── Language runtimes ────────────────────────────────────────────────────
 # postinstall: yarn comes from Corepack (see the note in the npm section);
-# re-enable its shim whenever a new node version lands.
-node     = { version = "lts", postinstall = "corepack enable yarn" }
+# re-enable its shim and default it to current stable (Yarn 4/berry)
+# whenever a new node version lands. The `|| true` keeps a registry hiccup
+# from failing the whole node install - update.sh re-runs both steps
+# idempotently on every update anyway.
+node     = { version = "lts", postinstall = "corepack enable yarn && corepack install -g yarn@stable || true" }
 rust     = "stable"
 java     = "21"
 elixir   = "1.19.5-otp-28"
@@ -39,7 +42,8 @@ elixir-ls                        = "latest"  # asdf: mise-plugins/mise-elixir-ls
 # (Yarn 2+): that pin is Corepack's mechanism. Instead Corepack provides the
 # `yarn` shim (node's postinstall above; update.sh re-runs it idempotently
 # for machines whose node predates this), so each repo gets the exact
-# version it pins and classic 1.22.x runs everywhere else. Not
+# version it pins; unpinned directories get Corepack's global default,
+# which is set to yarn@stable (4.x/berry, not classic). Not
 # `settings.node.corepack = true`: that would also install Corepack's pnpm
 # shim, fighting the explicit pnpm pin below.
 # Static file server for quick local checks (`serve dist/`)

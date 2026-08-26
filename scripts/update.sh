@@ -519,7 +519,7 @@ update_mise_tools() {
 	fi
 	if $DRY_RUN; then
 		would "run 'mise upgrade'"
-		would "corepack enable yarn + mise reshim (yarn ships via Corepack)"
+		would "corepack enable yarn; default it to yarn@stable (4.x); mise reshim"
 		return
 	fi
 	# `mise upgrade` updates each tool to the newest version satisfying the
@@ -530,14 +530,22 @@ update_mise_tools() {
 
 	# Yarn comes from Corepack (bundled with mise's node), not a global npm
 	# install: only Corepack honors package.json `packageManager` pins, so
-	# repos on Yarn 2+ get their exact version and everything else gets
-	# classic. Idempotent; writes a `yarn` symlink into node's bin, which
-	# mise reshims into ~/.local/share/mise/shims.
+	# repos on Yarn 2+ get their exact version and unpinned directories get
+	# the yarn@stable (4.x/berry) default set below. Idempotent; writes a
+	# `yarn` symlink into node's bin, which mise reshims into
+	# ~/.local/share/mise/shims.
 	if has_cmd corepack; then
 		if corepack enable yarn >/dev/null 2>&1; then
 			ok "corepack yarn shim enabled"
 		else
 			warn "corepack enable yarn failed (yarn unavailable until re-run)"
+		fi
+		# Unpinned directories default to current stable (Yarn 4/berry);
+		# package.json packageManager pins always win over this.
+		if corepack install -g yarn@stable >/dev/null 2>&1; then
+			ok "corepack default yarn -> stable (4.x)"
+		else
+			warn "corepack install -g yarn@stable failed (offline?); default unchanged"
 		fi
 		mise reshim >/dev/null 2>&1 || true
 	fi
