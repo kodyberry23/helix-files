@@ -23,6 +23,18 @@ elixir-ls                        = "latest"  # asdf: mise-plugins/mise-elixir-ls
 "npm:typescript"                 = "latest"
 "npm:typescript-language-server" = "latest"
 
+# ─── npm CLI tools ────────────────────────────────────────────────────────
+# TypeScript runner (run .ts directly, `tsx watch` for dev loops)
+"npm:tsx" = "latest"
+# Playwright CLI (installs the `playwright-cli` binary). Replaces the stray
+# Homebrew-npm global copy whose leftover daemon once swallowed every
+# "open in default browser" (see memory: playwright-chrome-steals-url-opens).
+"npm:@playwright/cli" = "latest"
+# Check package.json dependency ranges for updates (`ncu`; `ncu -i` to pick)
+"npm:npm-check-updates" = "latest"
+# Static file server for quick local checks (`serve dist/`)
+"npm:serve" = "latest"
+
 # ─── Formatters used by helix/languages.toml ──────────────────────────────
 "npm:prettier" = "latest"
 "pipx:ruff"    = "latest"
