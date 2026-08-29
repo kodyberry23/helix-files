@@ -76,8 +76,10 @@ keybinds {
         bind "Alt ]" { GoToNextTab; }
         // Pane fullscreen toggle (was tmux M-f / prefix f)
         bind "Alt f" { ToggleFocusFullscreen; }
-        // Toggle pane frames on/off (useful when copying with mouse)
-        bind "Alt z" { TogglePaneFrames; }
+        // Pane frames are NOT bound to a direct Alt key: a stray Alt-z next to
+        // Alt-t / Alt-w / Alt-f silently hid every frame for the life of the
+        // session and looked like a broken theme. The toggle stays reachable
+        // through pane mode (Ctrl-p, then z), zellij's default.
         // Detach (was tmux Ctrl-q). Replaces zellij's default Quit binding
         // - Quit is destructive (closes the session entirely); detach is
         // what's wanted 95% of the time. Quit is still reachable via

@@ -234,7 +234,7 @@ The previous tmux setup was replaced with zellij to get **proper 4-edge active p
 | `Alt 1` … `Alt 9` | jump to tab N |
 | `Alt t` / `Alt w` | new tab / close tab |
 | `Alt f` | toggle pane fullscreen |
-| `Alt z` | toggle pane frames on/off (handy when copying with the mouse) |
+| `Ctrl p` then `z` | toggle pane frames on/off (zellij default, handy when copying with the mouse; deliberately not on a direct Alt key, a stray press hides every frame for the whole session) |
 | `Alt =` / `Alt -` | resize active pane (zellij default - kept) |
 | `Ctrl q` | **detach** (overrides zellij's default Quit binding) |
 | `Alt q` | quit zellij (the destructive form, kept addressable) |
