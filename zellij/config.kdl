@@ -8,8 +8,9 @@
 // not the .kdl files). zellij's default theme_dir is the config dir's
 // themes/ subdirectory, which resolves here via the ~/.config/zellij
 // symlink. External theme files load correctly on 0.44.1+ (0.44.0 silently
-// ignored them - zellij-org/zellij#4909); we pin 0.44.2 anyway for the
-// transparency regression in 0.44.3 (see scripts/lib/common.sh). Colors in
+// ignored them - zellij-org/zellij#4909). zellij is brew-managed and
+// unpinned: the suspected 0.44.3 transparency regression was refuted and
+// the old 0.44.2 pin removed (see scripts/lib/common.sh). Colors in
 // the generated files are "#RRGGBB" strings; `background 0` slots are the
 // transparency passthrough that lets ghostty's window opacity show through.
 // The line below is a pointer apply-theme.sh rewrites on theme switch;

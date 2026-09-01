@@ -234,7 +234,6 @@ The previous tmux setup was replaced with zellij to get **proper 4-edge active p
 | `Alt 1` … `Alt 9` | jump to tab N |
 | `Alt t` / `Alt w` | new tab / close tab |
 | `Alt f` | toggle pane fullscreen |
-| `Ctrl p` then `z` | toggle pane frames on/off (zellij default, handy when copying with the mouse; deliberately not on a direct Alt key, a stray press hides every frame for the whole session) |
 | `Alt =` / `Alt -` | resize active pane (zellij default - kept) |
 | `Ctrl q` | **detach** (overrides zellij's default Quit binding) |
 | `Alt q` | quit zellij (the destructive form, kept addressable) |
@@ -243,12 +242,14 @@ The previous tmux setup was replaced with zellij to get **proper 4-edge active p
 
 | Key | Mode |
 |---|---|
-| `Ctrl p` | pane (h/j/k/l focus, n/d/r split, x close, f fullscreen, c rename, w toggle floating) |
+| `Ctrl p` | pane (h/j/k/l focus, n/d/r split, x close, f fullscreen, z toggle pane frames, c rename, w toggle floating) |
 | `Ctrl t` | tab (1-9 jump, n new, x close, h/l prev/next, r rename, b break-out) |
 | `Ctrl n` | resize (h/j/k/l increase, H/J/K/L decrease, =/+ / - shrink/grow) |
 | `Ctrl s` | scroll / search (vim keys, `s` enter search, `e` edit scrollback) |
 | `Ctrl o` | session (d detach, w workspace, c new client) |
 | `Ctrl g` | locked (no zellij keybinds intercepted - useful for nested-zellij or apps that conflict) |
+
+Pane frames: `Ctrl p` then `z` toggles them (zellij default, handy when copying with the mouse). Deliberately not bound to a direct Alt key - a stray press hides every frame for the whole session.
 
 **Shell aliases for zellij session control:**
 
