@@ -242,14 +242,14 @@ The previous tmux setup was replaced with zellij to get **proper 4-edge active p
 
 | Key | Mode |
 |---|---|
-| `Ctrl p` | pane (h/j/k/l focus, n/d/r split, x close, f fullscreen, z toggle pane frames, c rename, w toggle floating) |
+| `Ctrl p` | pane (h/j/k/l focus, n/d/r split, x close, f fullscreen, `Ctrl z` toggle pane frames, c rename, w toggle floating) |
 | `Ctrl t` | tab (1-9 jump, n new, x close, h/l prev/next, r rename, b break-out) |
 | `Ctrl n` | resize (h/j/k/l increase, H/J/K/L decrease, =/+ / - shrink/grow) |
 | `Ctrl s` | scroll / search (vim keys, `s` enter search, `e` edit scrollback) |
 | `Ctrl o` | session (d detach, w workspace, c new client) |
 | `Ctrl g` | locked (no zellij keybinds intercepted - useful for nested-zellij or apps that conflict) |
 
-Pane frames: `Ctrl p` then `z` toggles them (zellij default, handy when copying with the mouse). Deliberately not bound to a direct Alt key - a stray press hides every frame for the whole session.
+Pane frames: `Ctrl p` then `Ctrl z` toggles them (handy when copying with the mouse). Deliberately not on a direct Alt key, and not on zellij's default bare `z` either: helix uses Ctrl-p as "previous entry" in pickers, prompts and the completion menu, but zellij owns Ctrl-p in normal mode and silently enters pane mode with it (there is no status bar to show the switch), so the next `z` for helix's view mode was hiding every frame for the rest of the session. `scripts/tests/test_zellij_config.py` drives a throwaway session through a pty to keep both facts true.
 
 **Shell aliases for zellij session control:**
 

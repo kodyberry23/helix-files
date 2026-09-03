@@ -79,13 +79,27 @@ keybinds {
         bind "Alt f" { ToggleFocusFullscreen; }
         // Pane frames are NOT bound to a direct Alt key: a stray Alt-z next to
         // Alt-t / Alt-w / Alt-f silently hid every frame for the life of the
-        // session and looked like a broken theme. The toggle stays reachable
-        // through pane mode (Ctrl-p, then z), zellij's default.
+        // session and looked like a broken theme. See the `pane` block below
+        // for where the toggle lives now.
         // Detach (was tmux Ctrl-q). Replaces zellij's default Quit binding
         // - Quit is destructive (closes the session entirely); detach is
         // what's wanted 95% of the time. Quit is still reachable via
         // session mode (Ctrl-o, then `q`) or Alt-q below.
         bind "Ctrl q" { Detach; }
         bind "Alt q"  { Quit; }
+    }
+    pane {
+        // zellij's default puts the pane-frame toggle on a bare `z` in pane
+        // mode. Helix binds Ctrl-p as "previous entry" in pickers, prompts
+        // and the completion menu, but zellij owns Ctrl-p in normal mode and
+        // enters pane mode with it instead. This layout has no status bar,
+        // so that mode switch is invisible, and the next `z` (helix view
+        // mode, `zz`) toggled the frames off and dropped back to normal mode
+        // as if nothing happened. Make the bare letter only return to normal
+        // mode (a plain `unbind` would leave zellij parked in pane mode,
+        // where the next helix `x` closes the editor pane) and put the toggle
+        // on a chord nothing in helix produces.
+        bind "z" { SwitchToMode "Normal"; }
+        bind "Ctrl z" { TogglePaneFrames; SwitchToMode "Normal"; }
     }
 }

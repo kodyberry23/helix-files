@@ -34,7 +34,26 @@ elixir-ls                        = "latest"  # asdf: mise-plugins/mise-elixir-ls
 # Playwright CLI (installs the `playwright-cli` binary). Replaces the stray
 # Homebrew-npm global copy whose leftover daemon once swallowed every
 # "open in default browser" (see memory: playwright-chrome-steals-url-opens).
-"npm:@playwright/cli" = "latest"
+#
+# trust_policy_excludes: mise's embedded npm installer (aube, the default
+# since mise 2026.7.12) refuses a release whose publish evidence is weaker than
+# any earlier release of the same package. @playwright/cli 0.1.0-0.1.18 and
+# playwright/playwright-core through 1.62.x were published by GitHub
+# Actions with SLSA provenance; from 0.1.19 / the 1.63 alphas on, Microsoft
+# publishes through its internal ESRP pipeline (microsoft/playwright-cli
+# commit cbc09311, 2026-08-27, "publish all npm versions via ESRP
+# pipeline"), which emits no provenance. Reviewed 2026-09-03: the npm
+# publisher (microsoft1es) is a listed package maintainer and the 0.1.19
+# tarball is byte-identical to the v0.1.19 tag. The switch is permanent, so
+# the exception is open-ended: a range for the cli (plain semver), bare
+# names for the two transitive packages because their date-stamped
+# prerelease versions (1.6x.0-alpha-YYYY-MM-DD) do not match semver ranges
+# across minor bumps.
+"npm:@playwright/cli" = { version = "latest", trust_policy_excludes = [
+  "@playwright/cli@>=0.1.19",
+  "playwright",
+  "playwright-core",
+] }
 # Check package.json dependency ranges for updates (`ncu`; `ncu -i` to pick)
 "npm:npm-check-updates" = "latest"
 # Yarn is deliberately NOT installed here. A global npm yarn (1.22.x) hard-
