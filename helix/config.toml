@@ -31,6 +31,13 @@ clipboard-provider = "pasteboard"
 #   gets a statusline warning instead of a modal prompt.
 # - poll: mtime backstop for files outside the watched workspace
 #   (checked on focus-gained too); watched files react instantly.
+# - Language servers follow along (local patch): a reload is reported to the
+#   file's servers as a save, and a changed file no buffer holds is sent to
+#   rust-analyzer as `rust-analyzer/runFlycheck`, so cargo check re-runs and
+#   the gutter, the diagnostics picker and the sidebar drop errors fixed by
+#   another program. rust-analyzer re-checks on save only, never on
+#   watched-file changes inside its workspace, so without this a fix from
+#   outside hx stayed red until the next :w of anything.
 #
 # NOTE: this MUST come after every plain `[editor]` key (above) - once a
 # `[editor.<sub>]` table header opens, all subsequent unprefixed keys

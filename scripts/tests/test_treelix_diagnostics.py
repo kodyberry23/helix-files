@@ -23,6 +23,15 @@ Scenarios
      <seq>`, what hx sends) replace the whole set atomically; an older sequence
      from the same sender arriving late is ignored, while a different sender
      (a restarted editor) is applied whatever its sequence
+  6. `diagnostics-bye <sender> <seq>` (an exiting hx) clears the tree only
+     when that sender's snapshot is the one on display; a snapshot of its own
+     that arrives late is still ignored, and a new sender still applies
+  7. [rust-analyzer] fix the error and `:wq` at once, before rust-analyzer
+     can republish: the exiting hx retracts its markers, the file goes plain
+  8. [rust-analyzer] a file fixed on disk by another program (a file hx is
+     not editing, then one it is): hx asks rust-analyzer to re-check, so the
+     sidebar clears with no keystroke in the editor, and colors again when
+     the error comes back the same way
 """
 import fcntl
 import os
@@ -142,6 +151,8 @@ class Pty:
         threading.Thread(target=drain, daemon=True).start()
 
     def send(self, keys):
+        """Never put ESC and the next key in one write: crossterm reads
+        `ESC x` arriving together as Alt-x."""
         os.write(self.fd, keys.encode())
 
     def wait_for_span(self, name, fg, timeout, since=0):
@@ -160,6 +171,17 @@ class Pty:
             if name in text:
                 last = span_fg
         return last
+
+    def wait_for_plain(self, name, timeout, since=0):
+        """The first non red/yellow foreground `name` is repainted in after
+        `since`, or None if it is not repainted plain within `timeout`."""
+        end = time.time() + timeout
+        while time.time() < end:
+            self.pump(0.3)
+            fg = self.last_fg_of(name, since=since)
+            if fg is not None and fg not in (fg_of(RED), fg_of(YELLOW)):
+                return fg
+        return None
 
     def quit(self, keys):
         try:
@@ -239,6 +261,40 @@ def main():
         shutil.rmtree(work, ignore_errors=True)
 
 
+class LspLog:
+    """The methods hx sent rust-analyzer since `mark()`, from `hx -v --log`."""
+    METHOD = re.compile(r'rust-analyzer -> .*?"method":"([^"]+)"')
+
+    def __init__(self, path):
+        self.path = path
+        self.offset = 0
+
+    def _read(self):
+        try:
+            return open(self.path).read()
+        except FileNotFoundError:
+            return ""
+
+    def mark(self):
+        self.offset = len(self._read())
+
+    def methods_since_mark(self):
+        return self.METHOD.findall(self._read()[self.offset:])
+
+
+def wait_for_exit(child, timeout):
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            pid, _ = os.waitpid(child.pid, os.WNOHANG)
+        except ChildProcessError:
+            return True
+        if pid:
+            return True
+        time.sleep(0.05)
+    return False
+
+
 def run(work, failures, check, spawn):
     os.makedirs(os.path.join(work, "src"))
     target = os.path.join(work, "src", "main.rs")
@@ -299,6 +355,26 @@ def run(work, failures, check, spawn):
     mark = len(tl.buf)
     send_line(sock, f"diagnostics-begin hx-restarted 1\ndiagnostics 1 0 {target}\ndiagnostics-end 1")
     check(tl.wait_for_span("main.rs", fg_of(RED), 5, since=mark), "5 a new sender is applied despite a lower sequence")
+
+    # 6: an exiting editor retracts its snapshot, and only its own
+    mark = len(tl.buf)
+    send_line(sock, "diagnostics-bye hx-someone-else 2")
+    tl.pump(1.0)
+    check(tl.last_fg_of("main.rs", since=mark) in (None, fg_of(RED)), "6 a farewell from another editor is ignored",
+          f"fg = {tl.last_fg_of('main.rs', since=mark)}")
+    mark = len(tl.buf)
+    send_line(sock, "diagnostics-bye hx-restarted 2")
+    tl.pump(1.0)
+    check(tl.last_fg_of("main.rs", since=mark) not in (None, fg_of(RED), fg_of(YELLOW)), "6 a farewell from the displayed editor clears it",
+          f"fg = {tl.last_fg_of('main.rs', since=mark)}")
+    mark = len(tl.buf)
+    send_line(sock, f"diagnostics-begin hx-restarted 1\ndiagnostics 1 0 {target}\ndiagnostics-end 1")
+    tl.pump(1.0)
+    check(tl.last_fg_of("main.rs", since=mark) not in (fg_of(RED), fg_of(YELLOW)), "6 a snapshot that lost the race to the farewell is stale",
+          f"fg = {tl.last_fg_of('main.rs', since=mark)}")
+    mark = len(tl.buf)
+    send_line(sock, f"diagnostics-begin hx-third 1\ndiagnostics 1 0 {target}\ndiagnostics-end 1")
+    check(tl.wait_for_span("main.rs", fg_of(RED), 5, since=mark), "6 a new editor still applies after a farewell")
     tl.quit("q")
 
     # 3: end to end through helix + rust-analyzer
@@ -310,7 +386,9 @@ def run(work, failures, check, spawn):
         os.makedirs(os.path.join(crate, "src"))
         open(os.path.join(crate, "Cargo.toml"), "w").write('[package]\nname = "diagdemo"\nversion = "0.1.0"\nedition = "2021"\n')
         bad = os.path.join(crate, "src", "main.rs")
-        open(bad, "w").write('fn main() { let x: i32 = "not a number"; }\n')
+        # The error on its own line, so scenario 7 can fix it by deleting the
+        # line instead of retyping through helix's auto-pairs.
+        open(bad, "w").write('fn main() {}\nfn broken() { let x: i32 = "not a number"; }\n')
         subprocess.run(["git", "init", "-q"], cwd=crate, check=True)
         sock2 = os.path.join(work, "treelix2.sock")
         tl = spawn([TREELIX, "--theme", THEME, crate], crate, base_env(sock2))
@@ -322,6 +400,101 @@ def run(work, failures, check, spawn):
         hx.drain_in_background()
         ok = tl.wait_for_span("main.rs", fg_of(RED), 90, since=mark)
         check(ok, "3 rust-analyzer error reaches the sidebar as red through hx", ESC.sub(b"", bytes(tl.buf[mark:])).decode("utf-8", "replace"))
+
+        # 7: fix it and quit before rust-analyzer can report the fix
+        mark = len(tl.buf)
+        hx.send("\x1b")
+        time.sleep(0.2)
+        hx.send("gg")
+        hx.send("j")
+        hx.send("xd")
+        hx.send(":wq\r")
+        exited = wait_for_exit(hx, 10)
+        check(exited, "7 hx exits on :wq")
+        check(exited and open(bad).read() == "fn main() {}\n", "7 the fix was written", repr(open(bad).read()))
+        check(tl.wait_for_plain("main.rs", 8, since=mark) is not None,
+              "7 an editor that exits before the LSP republishes does not leave the file red",
+              f"last fg = {tl.last_fg_of('main.rs', since=mark)}")
+        tl.quit("q")
+
+        # 8: fixed on disk by another program, with no keystroke in hx
+        crate = os.path.join(work, "crate8")
+        os.makedirs(os.path.join(crate, "src"))
+        open(os.path.join(crate, "Cargo.toml"), "w").write('[package]\nname = "diagdemo"\nversion = "0.1.0"\nedition = "2021"\n')
+        main = os.path.join(crate, "src", "main.rs")
+        other = os.path.join(crate, "src", "other.rs")
+        # A borrow-check error: only cargo check reports it, never
+        # rust-analyzer's own analysis, so nothing but a re-check clears it.
+        moved = 'let s = String::new(); let t = s; println!("{}{}", s, t);'
+        fixed = 'let s = String::new(); let t = s.clone(); println!("{}{}", s, t);'
+        open(main, "w").write('mod other;\nfn main() { other::f(); }\n')
+        open(other, "w").write(f'pub fn f() {{ {moved} }}\n')
+        subprocess.run(["git", "init", "-q"], cwd=crate, check=True)
+        sock3 = os.path.join(work, "treelix3.sock")
+        tl = spawn([TREELIX, "--theme", THEME, crate], crate, base_env(sock3))
+        tl.pump(1.0)
+        send_line(sock3, f"reveal {main}")
+        tl.pump(0.5)
+        mark = len(tl.buf)
+        # `-v --log`: helix logs every message it sends a server
+        # (`rust-analyzer -> {...}`), which pins the mechanism, not just the
+        # color it ends in.
+        hx_log = LspLog(os.path.join(work, "hx8.log"))
+        hx = spawn([HX, "-v", "--log", hx_log.path, "src/main.rs"], crate, base_env(sock3))
+        hx.drain_in_background()
+        check(tl.wait_for_span("other.rs", fg_of(RED), 90, since=mark),
+              "8 a cargo-check error in a file hx is not editing is red",
+              ESC.sub(b"", bytes(tl.buf[mark:])).decode("utf-8", "replace"))
+        mark = len(tl.buf)
+        hx_log.mark()
+        open(other, "w").write(f'pub fn f() {{ {fixed} }}\n')
+        check(tl.wait_for_plain("other.rs", 45, since=mark) is not None,
+              "8 fixing that file on disk clears it with no keystroke in hx",
+              f"last fg = {tl.last_fg_of('other.rs', since=mark)}")
+        sent = hx_log.methods_since_mark()
+        check("rust-analyzer/runFlycheck" in sent and "textDocument/didSave" not in sent,
+              "8 hx asked rust-analyzer to re-check the file it is not editing (runFlycheck, no fake save)", str(sent))
+        mark = len(tl.buf)
+        open(other, "w").write(f'pub fn f() {{ {moved} }}\n')
+        check(tl.wait_for_span("other.rs", fg_of(RED), 45, since=mark),
+              "8 breaking it again on disk colors it again (the re-check really ran)")
+        mark = len(tl.buf)
+        open(other, "w").write(f'pub fn f() {{ {fixed} }}\n')
+        check(tl.wait_for_plain("other.rs", 45, since=mark) is not None,
+              "8 and fixing it once more clears it once more",
+              f"last fg = {tl.last_fg_of('other.rs', since=mark)}")
+        # A file of another language must not start a cargo check, or cargo's
+        # own writes could start a check that starts another.
+        hx_log.mark()
+        open(os.path.join(crate, "README.md"), "w").write("# demo\n")
+        time.sleep(4)
+        sent = hx_log.methods_since_mark()
+        check("rust-analyzer/runFlycheck" not in sent and "textDocument/didSave" not in sent,
+              "8 a README write asks rust-analyzer for nothing", str(sent))
+        # The file hx has open: auto-reload picks up the change, and the
+        # reload is reported to rust-analyzer as a save.
+        mark = len(tl.buf)
+        hx_log.mark()
+        open(main, "w").write(f'mod other;\nfn main() {{ other::f(); {moved} }}\n')
+        check(tl.wait_for_span("main.rs", fg_of(RED), 45, since=mark),
+              "8 an error written into the open file on disk is red")
+        sent = hx_log.methods_since_mark()
+        check(sent.count("textDocument/didSave") == 1 and "rust-analyzer/runFlycheck" not in sent,
+              "8 the reload of the open file was reported as one save", str(sent))
+        mark = len(tl.buf)
+        open(main, "w").write(f'mod other;\nfn main() {{ other::f(); {fixed} }}\n')
+        check(tl.wait_for_plain("main.rs", 45, since=mark) is not None,
+              "8 fixing the open file on disk clears it with no keystroke in hx",
+              f"last fg = {tl.last_fg_of('main.rs', since=mark)}")
+        # hx's own :w is one save, not a save plus a watcher-triggered one.
+        hx_log.mark()
+        hx.send("\x1b")
+        time.sleep(0.2)
+        hx.send(":w\r")
+        time.sleep(4)
+        sent = hx_log.methods_since_mark()
+        check(sent.count("textDocument/didSave") == 1 and "rust-analyzer/runFlycheck" not in sent,
+              "8 hx's own :w is reported once", str(sent))
         hx.quit(":q!\r")
         tl.quit("q")
 
@@ -346,15 +519,7 @@ def run(work, failures, check, spawn):
     check(tl.wait_for_span("notes.txt", fg_of(YELLOW), 6, since=mark), "4 a modified tracked file turns yellow")
     mark = len(tl.buf)
     git("commit", "-q", "-am", "second")
-    end = time.time() + 8
-    cleared = False
-    while time.time() < end:
-        tl.pump(0.3)
-        fg = tl.last_fg_of("notes.txt", since=mark)
-        if fg is not None and fg != fg_of(YELLOW):
-            cleared = True
-            break
-    check(cleared, "4 an external commit clears the modified color",
+    check(tl.wait_for_plain("notes.txt", 8, since=mark) is not None, "4 an external commit clears the modified color",
           f"last fg = {tl.last_fg_of('notes.txt', since=mark)}")
     tl.quit("q")
 
