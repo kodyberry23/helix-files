@@ -26,6 +26,12 @@ Scenarios
      both panes still exist afterwards (the accidental helix chord is inert)
   4. Ctrl-p then Ctrl-z hides the frames, and the same chord again restores
      them (the deliberate toggle still works, both ways)
+  5. [hx + treelix] the default layout survives losing its editor pane: after
+     the pane is closed the way an accident closes it (zellij close-pane,
+     which leaves helix's socket file behind), the first file picked in the
+     sidebar spawns ONE replacement editor pane that binds the session's
+     helix socket, and the next file picked opens in that pane instead of
+     spawning another
 """
 import fcntl
 import os
@@ -90,13 +96,15 @@ def frame_glyphs(raw: bytes) -> int:
 class Session:
     """A zellij session on its own socket dir, driven through a pty."""
 
-    def __init__(self, layout: pathlib.Path):
+    def __init__(self, layout: pathlib.Path, cwd: pathlib.Path = None):
         self.name = "test-" + uuid.uuid4().hex[:8]
         self.env = dict(os.environ, ZELLIJ_SOCKET_DIR=SOCKET_DIR, TERM="xterm-256color")
         self.rows, self.cols = 30, 100
         self.pid, self.fd = pty.fork()
         if self.pid == 0:
             try:
+                if cwd is not None:
+                    os.chdir(cwd)
                 os.environ.update(self.env)
                 os.execvp("zellij", [
                     "zellij", "--config", str(CONFIG), "--session", self.name,
@@ -144,16 +152,28 @@ class Session:
         buf = self.read_until(lambda b: frame_glyphs(b) >= self.rows - 2, 10)
         return buf + self.read_until(lambda b: False, 0.8)
 
-    def pane_names(self) -> list:
-        """Names of the terminal panes, via `zellij action list-panes`."""
+    def panes(self) -> list:
+        """(id, name) of the terminal panes, via `zellij action list-panes`."""
         r = subprocess.run(["zellij", "--session", self.name, "action", "list-panes"],
                            env=self.env, capture_output=True, text=True, timeout=20)
-        names = []
+        panes = []
         for line in r.stdout.splitlines():
             parts = line.split()
             if len(parts) >= 3 and parts[1] == "terminal":
-                names.append(parts[2])
-        return names
+                panes.append((parts[0], parts[2]))
+        return panes
+
+    def pane_names(self) -> list:
+        return [name for _, name in self.panes()]
+
+    def action(self, *args: str) -> subprocess.CompletedProcess:
+        return subprocess.run(["zellij", "--session", self.name, "action", *args],
+                              env=self.env, capture_output=True, text=True, timeout=20)
+
+    def pane_env(self) -> dict:
+        """The environment a script run from inside one of this session's
+        panes would see, as far as the repo's scripts care."""
+        return dict(self.env, ZELLIJ="1", ZELLIJ_SESSION_NAME=self.name)
 
     def close(self):
         # kill-session stops the server; delete-session --force then removes
@@ -233,6 +253,127 @@ def frame_scenarios(tmp: pathlib.Path):
         s.close()
 
 
+def socket_accepts(path: str, timeout: float) -> bool:
+    """True once a listener answers on the unix socket at `path`."""
+    import socket as socketlib
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            with socketlib.socket(socketlib.AF_UNIX, socketlib.SOCK_STREAM) as c:
+                c.connect(path)
+            return True
+        except OSError:
+            time.sleep(0.2)
+    return False
+
+
+def hx_binds_a_socket(tmp: pathlib.Path) -> bool:
+    """Whether the `hx` on PATH has the command-socket patch (PR #13896):
+    started with HELIX_SOCKET_PATH it binds that path; stock helix never
+    does. `--health` says nothing about it, so probe the behavior."""
+    probe = str(tmp / "probe.sock")
+    pid, fd = pty.fork()
+    if pid == 0:
+        try:
+            os.environ["HELIX_SOCKET_PATH"] = probe
+            os.execvp("hx", ["hx"])
+        except OSError:
+            os._exit(127)
+    try:
+        return socket_accepts(probe, 10)
+    finally:
+        os.kill(pid, 9)
+        os.close(fd)
+        os.waitpid(pid, 0)
+        try:
+            os.remove(probe)
+        except OSError:
+            pass
+
+
+def editor_pane_scenario(tmp: pathlib.Path):
+    """5: losing the editor pane, then picking two files from the sidebar."""
+    # launch-editor.sh runs a bare `hx`, so PATH is what counts (the pane
+    # inherits this environment).
+    if not (shutil.which("hx") and shutil.which("treelix")):
+        print("SKIP 5: hx or treelix not on PATH")
+        return
+    if not hx_binds_a_socket(tmp):
+        print("SKIP 5: hx lacks the command socket (not built from local-patches)")
+        return
+    project = tmp / "project"
+    (project / "sub").mkdir(parents=True)
+    one = project / "one.rs"
+    two = project / "sub" / "two.rs"
+    one.write_text("fn one() {}\n")
+    two.write_text("fn two() {}\n")
+    dispatch = REPO / "scripts" / "dispatch-to-editor.sh"
+    s = Session(REPO / "zellij" / "layouts" / "default.kdl", cwd=project)
+    env = s.pane_env()
+    # The same derivation as lib/common.sh helix_socket_path / treelix_socket_path.
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
+    sock = f"{runtime}/helix/{s.name}.sock"
+    sidebar_sock = f"{runtime}/treelix/{s.name}.sock"
+
+    def editors() -> list:
+        return [pid for pid, name in s.panes() if name == "editor"]
+
+    try:
+        s.wait_for_frames()
+        if not socket_accepts(sock, 20):
+            failures.append(f"5: the layout's editor pane never bound {sock}")
+            return
+        # Close the editor pane the way an accident does. helix is killed
+        # with the pane, so its socket file stays behind.
+        ids = editors()
+        if len(ids) != 1:
+            failures.append(f"5: expected one editor pane at startup, found {ids}")
+            return
+        s.action("focus-pane-id", ids[0])
+        s.action("close-pane")
+        s.read_until(lambda b: False, 1.0)
+        if editors():
+            failures.append("5: close-pane left the editor pane in place")
+            return
+        if not os.path.exists(sock):
+            print("note: 5: the socket file was cleaned up on close; the stale-file case is not exercised")
+
+        subprocess.run([str(dispatch), "open", str(one)], env=env, cwd=project,
+                       capture_output=True, text=True, timeout=30)
+        bound = socket_accepts(sock, 20)
+        n = len(editors())
+        if bound and n == 1:
+            print("ok: 5: the first pick spawns one replacement editor pane that binds the session socket")
+        else:
+            failures.append(f"5: after the first pick: session socket accepting = {bound}, "
+                            f"editor panes = {n} (expected True and 1)")
+            return
+
+        # The second pick must route into that pane, not spawn another. Wait
+        # for the replacement to have opened its file, not just bound.
+        if b"one.rs" not in s.read_until(lambda b: b"one.rs" in b, 10):
+            failures.append("5: the replacement editor pane never showed one.rs")
+            return
+        subprocess.run([str(dispatch), "open", str(two)], env=env, cwd=project,
+                       capture_output=True, text=True, timeout=30)
+        screen = s.read_until(lambda b: b"two.rs" in b, 10) + s.repaint()
+        n = len(editors())
+        if n == 1 and b"two.rs" in screen:
+            print("ok: 5: the second pick opens in the replacement pane (still one editor pane)")
+        else:
+            failures.append(f"5: after the second pick: editor panes = {n}, "
+                            f"two.rs on screen = {b'two.rs' in screen} (expected 1 and True)")
+    finally:
+        s.close()
+        # helix and treelix die with the session and leave their socket
+        # files behind.
+        for stale in (sock, sidebar_sock):
+            try:
+                os.remove(stale)
+            except OSError:
+                pass
+
+
 def main() -> int:
     if shutil.which("zellij") is None:
         print("SKIP: zellij not installed")
@@ -265,6 +406,9 @@ def main() -> int:
         os.makedirs(SOCKET_DIR, mode=0o700, exist_ok=True)
         with tempfile.TemporaryDirectory() as tmp:
             frame_scenarios(pathlib.Path(tmp))
+        # 5. The default layout with the real hx + treelix.
+        with tempfile.TemporaryDirectory() as tmp:
+            editor_pane_scenario(pathlib.Path(os.path.realpath(tmp)))
 
     if failures:
         for f in failures:
