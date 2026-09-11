@@ -24,6 +24,13 @@ show_startup_tips false
 show_release_notes false
 
 pane_frames true
+// zellij 0.45 split the frame look out of pane_frames: with it on, the new
+// pane_frame_style defaults to "titles" (a title line above each pane, no
+// border), which looks like frames are missing until a TogglePaneFrames
+// lands on "full" (the toggle now cycles full -> titles -> none). Pin the
+// full frame. An older zellij ignores the unknown key and keeps its own
+// (full) default, so this is safe on both sides of the upgrade.
+pane_frame_style "full"
 rounded_corners true
 
 default_mode "normal"

@@ -24,8 +24,9 @@ Scenarios
      leaves them drawn AND drops zellij back to normal mode: a following
      `x` (helix "extend line") must not reach pane mode's CloseFocus, so
      both panes still exist afterwards (the accidental helix chord is inert)
-  4. Ctrl-p then Ctrl-z hides the frames, and the same chord again restores
-     them (the deliberate toggle still works, both ways)
+  4. Ctrl-p then Ctrl-z walks zellij 0.45's three frame styles in order:
+     full -> titles (pane titles, no borders) -> none -> full again (the
+     deliberate cycle still works, and starts from full)
   5. [hx + treelix] the default layout survives losing its editor pane: after
      the pane is closed the way an accident closes it (zellij close-pane,
      which leaves helix's socket file behind), the first file picked in the
@@ -37,6 +38,7 @@ import fcntl
 import os
 import pathlib
 import pty
+import re
 import select
 import shutil
 import struct
@@ -210,14 +212,26 @@ class Session:
             print(f"warn: zellij client {self.pid} did not exit after SIGKILL", file=sys.stderr)
 
 
-def expect_frames(label: str, raw: bytes, want: bool):
-    n = frame_glyphs(raw)
-    have = n >= FRAME_GLYPH_MIN
+ESC_SEQ = re.compile(rb"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07")
+
+
+def frame_state(raw: bytes) -> str:
+    """zellij 0.45's pane_frame_style as painted: "full" draws borders,
+    "titles" draws only the pane titles (the probe layout names its panes
+    left/right), "none" draws neither."""
+    if frame_glyphs(raw) >= FRAME_GLYPH_MIN:
+        return "full"
+    txt = ESC_SEQ.sub(b"", raw)
+    return "titles" if (b"left" in txt and b"right" in txt) else "none"
+
+
+def expect_state(label: str, raw: bytes, want: str):
+    have = frame_state(raw)
     if have == want:
-        print(f"ok: {label} ({n} frame glyphs)")
+        print(f"ok: {label} ({have}, {frame_glyphs(raw)} frame glyphs)")
     else:
-        failures.append(f"{label}: expected frames {'drawn' if want else 'hidden'}, "
-                        f"counted {n} frame glyphs")
+        failures.append(f"{label}: expected frame style {want}, painted {have} "
+                        f"({frame_glyphs(raw)} frame glyphs)")
 
 
 def frame_scenarios(tmp: pathlib.Path):
@@ -227,9 +241,9 @@ def frame_scenarios(tmp: pathlib.Path):
     # 3. accidental chord is inert: frames stay, and mode returns to normal
     s = Session(layout)
     try:
-        expect_frames("frames drawn at startup", s.wait_for_frames(), True)
+        expect_state("frames drawn at startup", s.wait_for_frames(), "full")
         s.send("C-p", "z")
-        expect_frames("Ctrl-p then bare z leaves frames drawn", s.repaint(), True)
+        expect_state("Ctrl-p then bare z leaves frames drawn", s.repaint(), "full")
         s.send("x")  # helix "extend line"; in pane mode this is CloseFocus
         s.read_until(lambda b: False, 0.5)
         names = s.pane_names()
@@ -241,14 +255,16 @@ def frame_scenarios(tmp: pathlib.Path):
     finally:
         s.close()
 
-    # 4. deliberate toggle works both ways
+    # 4. the deliberate cycle: full -> titles -> none -> full
     s = Session(layout)
     try:
-        s.wait_for_frames()
+        expect_state("frames start full", s.wait_for_frames(), "full")
         s.send("C-p", "C-z")
-        expect_frames("Ctrl-p then Ctrl-z hides frames", s.repaint(), False)
+        expect_state("Ctrl-p then Ctrl-z drops the borders, keeps the titles", s.repaint(), "titles")
         s.send("C-p", "C-z")
-        expect_frames("Ctrl-p then Ctrl-z again restores frames", s.repaint(), True)
+        expect_state("Ctrl-p then Ctrl-z again hides the titles too", s.repaint(), "none")
+        s.send("C-p", "C-z")
+        expect_state("Ctrl-p then Ctrl-z a third time restores full frames", s.repaint(), "full")
     finally:
         s.close()
 
