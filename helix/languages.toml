@@ -93,3 +93,18 @@ name = "text"
 scope = "text.plain"
 file-types = ["txt", "log"]
 roots = []
+
+# GitLab CI. Helix already defines the `gitlab-ci` language (yaml grammar,
+# GitLab-aware queries, gitlab-ci-ls beside yaml-language-server), but only
+# for the exact name `.gitlab-ci.yml`. Widen it to the `.yaml` spelling and
+# to `*.gitlab-ci.yml` include files (`.gitlab/ci/build.gitlab-ci.yml`).
+# Helix replaces the whole file-types array on merge, so the original glob
+# is listed again. Both servers come from mise/config.toml.
+[[language]]
+name = "gitlab-ci"
+file-types = [
+  { glob = ".gitlab-ci.yml" },
+  { glob = ".gitlab-ci.yaml" },
+  { glob = "*.gitlab-ci.yml" },
+  { glob = "*.gitlab-ci.yaml" },
+]

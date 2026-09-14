@@ -15,7 +15,11 @@
 #      and the cargo-pinned zellij from the 2026-06/07 pin era (migrated
 #      back to brew: install brew's copy, then drop cargo's).
 #   2. Brew packages we installed: brew upgrade (with auto-update disabled)
-#   3. mise-managed tools: mise upgrade (runtimes, LSPs, formatters)
+#   3. mise-managed tools: mise upgrade (runtimes, LSPs, formatters; also
+#      installs tools newly declared in mise/config.toml). Then retires a
+#      Homebrew yaml-language-server if one is installed: it shadows the
+#      mise copy on PATH and its launcher needs brew's node, which this
+#      setup does not have.
 #   4. Helix nightly: git sync + cargo install --path helix-term --locked.
 #      Default checkout is the `local-patches` branch on the kodyberry23/helix
 #      fork (PR #13896 socket + PR #14544 watcher auto-reload + VCS trigger
@@ -510,6 +514,31 @@ update_treelix_from_source() {
 	warn "  restart open treelix sidebar panes to load it (running ones keep the old binary)"
 }
 
+# Homebrew's yaml-language-server. mise/config.toml provides it (npm backend,
+# on mise's node), but /opt/homebrew/bin precedes the mise shims on PATH, so
+# a brew copy shadows the managed one. Worse once brew's node is gone (the
+# formula depends on it; node here comes from mise): the brew launcher
+# hardcodes /opt/homebrew/opt/node/bin/node, fails with "bad interpreter",
+# and Helix logs "Failed to initialize the language servers" for every YAML
+# file while `hx --health` still shows a tick. Retire it, right after the
+# mise step has installed the replacement (never before: that would leave
+# YAML with no server at all), and only if the mise copy really is there.
+retire_brew_yaml_language_server() {
+	has_cmd brew && brew_has formula yaml-language-server || return 0
+	if $DRY_RUN; then
+		would "brew uninstall yaml-language-server (shadows the mise copy; brew's launcher needs brew's node)"
+		return 0
+	fi
+	if ! mise which yaml-language-server >/dev/null 2>&1; then
+		warn "  brew yaml-language-server left in place: mise has not installed its copy"
+		return 0
+	fi
+	info "  uninstalling brew yaml-language-server (mise provides it)"
+	brew uninstall yaml-language-server >/dev/null 2>&1 \
+		&& ok "uninstalled brew yaml-language-server" \
+		|| warn "  brew uninstall yaml-language-server failed (depended on, or in use?)"
+}
+
 # ─── 3. mise-managed tools ────────────────────────────────────────────────
 update_mise_tools() {
 	info "mise tools"
@@ -519,6 +548,7 @@ update_mise_tools() {
 	fi
 	if $DRY_RUN; then
 		would "run 'mise upgrade'"
+		retire_brew_yaml_language_server
 		would "corepack enable yarn; default it to yarn@stable (4.x); mise reshim"
 		return
 	fi
@@ -527,6 +557,7 @@ update_mise_tools() {
 	# nothing's drifted.
 	mise upgrade
 	ok "mise tools upgraded"
+	retire_brew_yaml_language_server
 
 	# Yarn comes from Corepack (bundled with mise's node), not a global npm
 	# install: only Corepack honors package.json `packageManager` pins, so

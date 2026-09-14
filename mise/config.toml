@@ -27,6 +27,10 @@ rust-analyzer                    = "latest"  # aqua: rust-lang/rust-analyzer
 elixir-ls                        = "latest"  # asdf: mise-plugins/mise-elixir-ls
 "npm:typescript"                 = "latest"
 "npm:typescript-language-server" = "latest"
+# YAML (also the structural half of .gitlab-ci.yml). Homebrew's package
+# hardcodes Homebrew's node, which this setup does not have (node comes from
+# mise), so a brew copy fails to start; update.sh retires one it finds.
+"npm:yaml-language-server"       = "latest"
 
 # ─── npm CLI tools ────────────────────────────────────────────────────────
 # TypeScript runner (run .ts directly, `tsx watch` for dev loops)
@@ -72,6 +76,9 @@ elixir-ls                        = "latest"  # asdf: mise-plugins/mise-elixir-ls
 "npm:prettier" = "latest"
 "pipx:ruff"    = "latest"
 "cargo:taplo-cli" = "latest"
+# GitLab CI language server (runs beside yaml-language-server for
+# .gitlab-ci.yml: job graph navigation, extends/needs diagnostics).
+"cargo:gitlab-ci-ls" = "latest"
 pnpm = "10.10.0"
 
 # Note: jdtls and erlang_ls are not in the mise registry on macOS.

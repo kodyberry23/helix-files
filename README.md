@@ -130,7 +130,7 @@ hfu --sync-upstream  # additionally: merge upstream/master in, rebuild, push bac
 ./scripts/update.sh
 ```
 
-Order: brew packages → mise tools → Helix nightly (rebuilt only if HEAD moved) → zsh-helix-mode → theme system (apply-theme.sh, which also re-stamps the ~/.zshrc managed block).
+Order: brew packages → mise tools (then a Homebrew `yaml-language-server`, if present, is uninstalled: it shadows the mise copy on PATH and its launcher needs brew's node) → Helix nightly (rebuilt only if HEAD moved) → zsh-helix-mode → theme system (apply-theme.sh, which also re-stamps the ~/.zshrc managed block).
 
 ## Language servers
 
@@ -140,13 +140,15 @@ Order: brew packages → mise tools → Helix nightly (rebuilt only if HEAD move
 |-------------------|------------------------------|-----------------------|
 | Rust              | `rust-analyzer`              | mise (aqua)           |
 | TypeScript / JS   | `typescript-language-server` | mise (npm backend)    |
+| YAML              | `yaml-language-server`       | mise (npm backend)    |
 | Elixir            | `elixir-ls`                  | mise (asdf plugin)    |
 | TOML              | `taplo`                      | mise (cargo backend)  |
+| GitLab CI         | `gitlab-ci-ls`               | mise (cargo backend)  |
 | Java              | `jdtls`                      | Homebrew              |
 | Erlang            | `erlang_ls`                  | Homebrew              |
 | Markdown          | `marksman`                   | Homebrew              |
 
-`jdtls`, `erlang_ls`, and `marksman` aren't in the mise registry, so they're brewed by `setup.sh`. Per-language entries in `helix/languages.toml` rely on Helix's bundled defaults for the primary LSP and only override when adding a formatter, tweaking inlay hints, or defining a new language (e.g. `text` for `.txt` / `.log` files).
+`jdtls`, `erlang_ls`, and `marksman` aren't in the mise registry, so they're brewed by `setup.sh`. Per-language entries in `helix/languages.toml` rely on Helix's bundled defaults for the primary LSP and only override when adding a formatter, tweaking inlay hints, or defining a new language (e.g. `text` for `.txt` / `.log` files). GitLab CI is one of Helix's bundled languages (`gitlab-ci`: yaml grammar with GitLab-aware highlighting, `gitlab-ci-ls` beside `yaml-language-server` for job-graph navigation and diagnostics); the override only widens its file names to `.gitlab-ci.yaml` and `*.gitlab-ci.yml` include files, and mise installs both servers. `scripts/tests/test_gitlab_ci_lsp.py` opens a broken `.gitlab-ci.yml` in the installed `hx` and checks that both servers start and report.
 
 Buffer auto-reload on external disk changes - and diff-gutter refresh on external git operations (commit, branch switch, reset) - is handled inside helix via the `[editor.auto-reload]` block in `helix/config.toml`, courtesy of [helix-editor/helix#14544](https://github.com/helix-editor/helix/pull/14544) (filesentry watcher) merged onto the local build branch in `~/projects/helix`, plus a local commit extending the VCS watch triggers to `refs/**`/`packed-refs`/`reftable` so plain commits refresh the gutter, not just branch switches. Clean buffers reload silently (statusline message); dirty buffers warn instead of prompting (`prompt-if-modified = false`). See `helix/config.toml` for the knobs.
 
